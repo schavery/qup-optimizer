@@ -76,12 +76,14 @@ At Grandmaster ranks (31+):
 
 ```
 optimizer/
-├── adjacency_generator.py    # Smart position generation (Panic clusters)
-├── candidate_generator.py    # Basic position generation
+├── adjacency_generator.py    # Smart position generation (Panic clusters + Angel)
+├── candidate_generator.py    # Basic position generation (ring-based)
 ├── upgrade_generator.py      # Upgrade configuration generation
-├── evaluator.py              # Simulate & score layouts
+├── evaluator.py              # Simulate & score layouts (with caching)
+├── local_search.py           # NEW: Iterative refinement via local search
+├── layout_ops.py             # NEW: Layout manipulation utilities (swap, rotate)
 ├── visualizer.py             # Display results (hex grids, Q spectra)
-├── main.py                   # Position optimization CLI
+├── main.py                   # Position optimization CLI (with refinement)
 └── optimize_upgrades.py      # Upgrade optimization CLI
 
 core/
@@ -159,23 +161,48 @@ frontend/
 
 **Port Configuration**: Runs on port 5001 (avoid macOS AirPlay Receiver conflict)
 
-### 1. Adjacency-Aware Position Optimization
+### 1. Iterative Position Refinement with Local Search
 
-**Strategy**: Build trigger clusters around Panic
-- Places trigger nodes (Focus, Low Point, Stimulant, etc.) adjacent to Panic
-- Positions Angel in outer rings (5-8) to trigger last
-- Maximizes feedback loop potential
+**NEW**: Intelligent layout improvement through iterative refinement!
+
+**Strategy**: Two-phase optimization
+1. **Broad exploration**: Generate 100 random layouts with Panic clustering
+2. **Local refinement**: Improve top 10 diverse candidates using local search
+
+**Domain-aware refinement operations**:
+- **Node swaps**: Move trigger nodes to optimize cluster configuration
+- **Cluster rotation**: Rotate groups of nodes around Panic (60° increments)
+- **Angel positioning**: Move Angel into/out of trigger cluster dynamically
+
+**Key insights**:
+- **Angel in trigger cluster**: High variance - loses more in worst case but **massively positive on average** (18/20 positive outcomes, avg +43.7M Q)
+- **Angel in outer rings**: Low variance - safer worst case but negative average (-574K avg Q, 1/20 positive)
+- **Evaluation caching**: 60-72% cache hit rate reduces redundant simulations
 
 **Usage**:
 ```bash
-python -m optimizer.main --candidates 100 --rank 31 --top 10 --detailed 3
+# With refinement (default)
+python -m optimizer.main --candidates 100 --refine-count 10 --top 10 --detailed 3
+
+# Without refinement (old behavior)
+python -m optimizer.main --no-refine --candidates 100
+
+# More aggressive refinement
+python -m optimizer.main --refine-count 20 --refine-iterations 100 --verbose-refine
 ```
 
 **Output**:
-- Top N layouts ranked by: worst-case Q → efficiency → adjacency score
+- Top N layouts ranked by: worst-case Q → efficiency → adjacency score → avg Q
 - Hex grid visualization showing node positions
 - Complete Q spectrum for all 20 round outcomes (WWW, WWLLL, etc.)
 - Trigger counts and efficiency metrics
+- Cache statistics (hit rate, total evaluations)
+- Per-candidate improvement tracking
+
+**Performance**:
+- Typical improvements: **+3M to +320M** min_q per refined candidate
+- Cache efficiency: 60-72% hit rate (7,000+ cache hits / 10,000+ evaluations)
+- Refinement time: ~10-30 seconds for 10 candidates × 50 iterations
 
 ### 2. Upgrade Point Optimization
 
@@ -270,23 +297,47 @@ Shows exact sequence of Panic triggers and which adjacent nodes are depleted.
 
 ## Results at Grandmaster 1 (Rank 31)
 
-### Best Configuration Found
-**Upgrades** (18 points):
-```
-Panic: [6,0] → 7 AVS
-EMT: [3,3] → 8 AVS, full BB scaling
-Stop the Bleeding: [3,0] → +35K Qdown reduction/loss
-Battle Medic: [0,2] → 2x then 3x qmult multiplier
-Triage: [2,0] → 4% Qdown reduction
-```
+### Best Configuration Found (With Refinement)
 
-**Position Layout**: All trigger nodes adjacent to Panic
+**Strategy**: Angel in trigger cluster for massive Q gains
 
-**Performance**:
-- **Min Q**: -3.6M (LLL worst case)
-- **Max Q**: +621K (WWW best case)
-- **Triggers**: 35-50 per flip (up from 4-9 without optimization)
-- **Efficiency**: 48.6% (51.4% wasted on depleted nodes)
+**Position Layout**:
+- **Angel**: Ring 3, adjacent to Panic (-3, 0, 3)
+- **Trigger cluster**: Low Point, Adrenaline, Extra Dose, Angel of Death all near Panic
+- **Angel triggers**: 93-114 per outcome (vs 33-45 with Angel outer)
+
+**Performance** (No upgrades):
+- **Min Q**: -5.2M (worst case WLWLL)
+- **Avg Q**: +43.8M (positive on average!)
+- **Max Q**: +109.7M (best case WLWLW)
+- **Positive outcomes**: 18/20 (90% success rate)
+- **Efficiency**: 87.9%
+
+### Angel Positioning Strategy Comparison
+
+| Metric | Angel Outer (Ring 7-8) | Angel in Cluster (Ring 3-4) |
+|--------|------------------------|---------------------------|
+| **Min Q (worst case)** | -804K | -5.2M |
+| **Avg Q** | -574K | **+43.8M** ✓ |
+| **Max Q** | +150K | +109.7M |
+| **Positive outcomes** | 1/20 (5%) | **18/20 (90%)** ✓ |
+| **Avg triggers/outcome** | 80-90 | **93-114** ✓ |
+| **Angel triggers** | 1-2 per round | **30-50 per round** ✓ |
+| **Strategy** | Safe, low variance | High risk, high reward |
+
+**Key Insight**: Angel in trigger cluster creates **massive positive Q** in most scenarios (90% success) by getting triggered repeatedly. The tradeoff is a worse worst-case, but the average case is **78x better** (+43.8M vs -574K).
+
+### Refinement Impact
+
+**Typical improvements per candidate**:
+- Best: +321.8M min_q (from -327M to -5.2M)
+- Average: +3M to +150M per candidate
+- All 10/10 candidates improved through local search
+
+**Refinement operations**:
+- Node swaps: 50-100 per candidate
+- Cluster rotations: 10-20 per candidate
+- Cache hit rate: 60-72% (avoids redundant simulations)
 
 ### Key Tradeoffs
 
@@ -297,7 +348,7 @@ Triage: [2,0] → 4% Qdown reduction
 | Q Outcomes | Better (more cascades) | Worse (fewer cascades) |
 | Wasted Triggers | High (50%+) | Low (25-40%) |
 
-**Recommendation**: Current meta favors maxing Panic despite waste, but efficiency tracking reveals the hidden cost.
+**Recommendation**: Angel-in-cluster strategy with iterative refinement produces massively positive average Q. Accept the worse worst-case for 90% positive outcomes.
 
 ## File Reference
 
@@ -364,6 +415,16 @@ python -m optimizer.optimize_upgrades --budget 18 --strategy exhaustive
 
 ## Recent Improvements (2025)
 
+### Iterative Refinement System (NEW!)
+- ✅ **Local search optimizer** - Iteratively improve layouts via node swaps and rotations
+- ✅ **Evaluation caching** - 60-72% cache hit rate during refinement
+- ✅ **Diverse candidate selection** - Pick top layouts across multiple metrics (min_q, avg_q, adjacency, efficiency)
+- ✅ **Domain-aware operations** - Angel positioning, trigger cluster optimization, EMT proximity
+- ✅ **Cluster rotation** - Rotate groups of nodes around Panic in 60° increments
+- ✅ **Angel-in-cluster strategy** - Place Angel adjacent to Panic for 90% positive outcomes
+- ✅ **Layout manipulation utilities** - Swap nodes, rotate clusters, validate layouts
+- ✅ **Performance tracking** - Show improvement per candidate, cache statistics
+
 ### Web Interface
 - ✅ Interactive hex grid with SVG rendering
 - ✅ Click-to-place node positioning
@@ -390,14 +451,16 @@ python -m optimizer.optimize_upgrades --budget 18 --strategy exhaustive
 
 ## Future Improvements
 
-1. **Pan/Drag Grid**: Add click-and-drag panning for large grids
-2. **Layout Comparison**: Side-by-side comparison of multiple layouts
-3. **Save/Load Layouts**: Persist layouts to localStorage or URL params
-4. **Multi-Objective Optimization**: Pareto frontier of Q vs efficiency
-5. **Genetic Algorithm**: Evolve layouts over generations
-6. **Adjacent Node AVS Optimization**: Ensure Panic's targets can handle all triggers
-7. **Battle Bonus Visualization**: Show BB accumulation in results panel
+1. **Simulated Annealing**: Explore global optima beyond local search
+2. **Multi-Objective Pareto**: Optimize for both worst-case AND average-case Q
+3. **Layout Comparison**: Side-by-side comparison of multiple layouts in web UI
+4. **Save/Load Layouts**: Persist layouts to localStorage or URL params
+5. **Genetic Algorithm**: Evolve layouts over generations with crossover/mutation
+6. **Adjacent Node AVS Balancing**: Ensure Panic's targets have enough AVS for all triggers
+7. **Battle Bonus Visualization**: Show BB accumulation timeline in results panel
 8. **Mobile Responsive**: Optimize layout for smaller screens
+9. **Upgrade + Position Co-optimization**: Jointly optimize upgrades and positions
+10. **Angel trigger visualization**: Show exactly when/how often Angel triggers per outcome
 
 ## Credits
 
