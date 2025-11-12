@@ -62,7 +62,7 @@ class EffectExecutor:
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'effect_mult' in path[step_idx]:
-                    effect_mult += path[step_idx]['effect_mult']
+                    effect_mult = path[step_idx]['effect_mult']
 
         game_state.qmult += base_value * effect_mult
         node.times_triggered_this_flip += 1
@@ -76,7 +76,7 @@ class EffectExecutor:
         # Check if depleted
         if avs is not None and node.times_triggered_this_flip >= avs:
             if not node.depleted_triggered:
-                # Check for depleted effect upgrade
+                # Check for depleted effect upgrade (only one level has this, so replace)
                 depleted_percent = 0
                 for path_idx, level in enumerate(node.upgrade_levels):
                     path = node.definition.upgrade_paths[path_idx]
@@ -97,12 +97,14 @@ class EffectExecutor:
         base_reduction = params['base_reduction']
         bb_multiplier = params['bb_multiplier']
 
-        # Apply upgrade bonuses to bb_multiplier
+        # Apply upgrade bonuses to bb_multiplier (replaces, not adds)
+        bb_multiplier_bonus = 0
         for path_idx, level in enumerate(node.upgrade_levels):
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'bb_multiplier_increase' in path[step_idx]:
-                    bb_multiplier += path[step_idx]['bb_multiplier_increase']
+                    bb_multiplier_bonus = path[step_idx]['bb_multiplier_increase']
+        bb_multiplier = params['bb_multiplier'] + bb_multiplier_bonus
 
         total_reduction = base_reduction + (bb_multiplier * game_state.battle_bonus)
         game_state.q_this_flip += total_reduction
@@ -117,13 +119,13 @@ class EffectExecutor:
         params = node.definition.effect_params
         base_amount = params['base_amount']
 
-        # Apply upgrade bonuses
+        # Apply upgrade bonuses (replaces, not adds)
         bonus = 0
         for path_idx, level in enumerate(node.upgrade_levels):
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'q_increase' in path[step_idx]:
-                    bonus += path[step_idx]['q_increase']
+                    bonus = path[step_idx]['q_increase']
 
         game_state.q_this_flip += base_amount + bonus
         node.times_triggered_this_flip += 1
@@ -137,12 +139,14 @@ class EffectExecutor:
         params = node.definition.effect_params
         base_per_loss = params['base_per_loss']
 
-        # Apply upgrade bonuses
+        # Apply upgrade bonuses (replaces, not adds)
+        bonus = 0
         for path_idx, level in enumerate(node.upgrade_levels):
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'per_loss_increase' in path[step_idx]:
-                    base_per_loss += path[step_idx]['per_loss_increase']
+                    bonus = path[step_idx]['per_loss_increase']
+        base_per_loss = params['base_per_loss'] + bonus
 
         # Count losses in flip_history
         losses = sum(1 for result in game_state.flip_history if not result)
@@ -168,12 +172,14 @@ class EffectExecutor:
         params = node.definition.effect_params
         base_percent = params['base_percent']
 
-        # Apply upgrade bonuses
+        # Apply upgrade bonuses (replaces, not adds)
+        bonus = 0
         for path_idx, level in enumerate(node.upgrade_levels):
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'percent_increase' in path[step_idx]:
-                    base_percent += path[step_idx]['percent_increase']
+                    bonus = path[step_idx]['percent_increase']
+        base_percent = params['base_percent'] + bonus
 
         # Apply percentage reduction (only on negative q_this_flip)
         if game_state.q_this_flip < 0:
@@ -192,12 +198,14 @@ class EffectExecutor:
         base_per_teammate = params['base_per_teammate']
         teammate_class = params['teammate_class']
 
-        # Apply upgrade bonuses
+        # Apply upgrade bonuses (replaces, not adds)
+        bonus = 0
         for path_idx, level in enumerate(node.upgrade_levels):
             path = node.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
                 if 'per_teammate_increase' in path[step_idx]:
-                    base_per_teammate += path[step_idx]['per_teammate_increase']
+                    bonus = path[step_idx]['per_teammate_increase']
+        base_per_teammate = params['base_per_teammate'] + bonus
 
         # For single player optimization, assume 0 gamblers for now
         # This can be parameterized later

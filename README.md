@@ -4,6 +4,25 @@ A comprehensive optimization system for finding optimal skill tree configuration
 
 ## Quick Start
 
+### Web Interface (Recommended)
+
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Install frontend dependencies
+cd frontend
+npm install
+cd ..
+
+# Start the web server
+python app.py
+```
+
+Then open http://localhost:5000 in your browser for an interactive hex grid editor with real-time simulation.
+
+### Command Line Interface
+
 ```bash
 # Basic position optimization
 python -m optimizer.main --candidates 20 --rank 31 --top 5
@@ -70,6 +89,25 @@ data/nodes.py           # All node definitions (static + movable)
 ```
 
 ## Features
+
+### 0. Web Interface
+
+**Interactive hex grid visualization with real-time simulation**
+- **Drag & drop** movable nodes to any hex position
+- **Upgrade sliders** for all static nodes with live point tracking
+- **Real-time evaluation** shows Q outcomes as you make changes
+- **Visual adjacency** highlights to understand trigger cascades
+- **Hex grid rendering** using SVG with proper cube coordinates
+- **Results panel** with outcome spectrum, trigger metrics, and efficiency
+
+**API Endpoints**:
+- `GET /api/nodes` - All node definitions
+- `POST /api/evaluate` - Evaluate a layout configuration
+- `POST /api/generate-layouts` - Generate optimized candidate layouts
+- `POST /api/generate-upgrades` - Generate upgrade configurations
+- `GET /api/outcomes` - All possible round outcome sequences
+
+**Tech Stack**: Flask + Vue.js 3 + Vite
 
 ### 1. Adjacency-Aware Position Optimization
 

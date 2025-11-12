@@ -18,11 +18,43 @@ on loss: -950Q, +203xp
 
 Gold 1:
 on win: +100Q, +750xp, +450 gold
-on loss: -2750Q, +338 gold
+on loss: -2750Q, +338 xp
 
 Gold 2:
 on win: +100Q, +875xp, +525 gold
-on loss: -3500Q, +394 gold
+on loss: -3500Q, +394 xp
+
+Gold 3:
+on win: +100Q, +1000xp, +600 gold
+on loss: -4500Q, +450 xp
+
+Gold 4:
+on win: +100Q, +1150xp, +690 gold
+on loss: -6000Q, +518 xp
+
+Gold 5:
+on win: +100Q, +1325xp, +795 gold
+on loss: -7500Q, +596 xp
+
+Platinum 1:
+on win: +100Q, +1500xp, +900 gold
+on loss: -15000Q, +675 xp
+
+Platinum 2:
+on win: +100Q, +1700xp, +1020 gold
+on loss: -22500Q, +765 xp
+
+Platinum 3:
+on win: +100Q, +1900xp, +1140 gold
+on loss: -32500Q, +855 xp
+
+Platinum 4:
+on win: +100Q, +2100xp, +1260 gold
+on loss: -42500Q, +945 xp
+
+
+
+
 
 
 is AVS resetting every flip?
