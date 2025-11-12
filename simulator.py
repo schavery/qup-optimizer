@@ -306,10 +306,10 @@ class Simulator:
         # Record flip result
         game_state.flip_history.append(win)
 
-        # Apply base Q change
+        # Apply base Q change and increment BB on loss
         if win:
             game_state.q_this_flip = 100
-            game_state.battle_bonus = 0  # Reset on win
+            # BB will reset AFTER node evaluation
         else:
             game_state.q_this_flip = -game_state.get_qdown_for_rank()
             game_state.battle_bonus += 1  # Increment on loss
@@ -332,11 +332,15 @@ class Simulator:
         # Apply Qmult at the end
         game_state.apply_qmult()
 
+        # Reset BB AFTER node evaluation on win
+        if win:
+            game_state.battle_bonus = 0
+
         return game_state
 
-    def simulate_round(self, flip_sequence: List[bool], rank: int = 1) -> GameState:
+    def simulate_round(self, flip_sequence: List[bool], rank: int = 1, initial_bb: int = 0) -> GameState:
         """Simulate a full round (series of flips)"""
-        game_state = GameState(rank=rank)
+        game_state = GameState(rank=rank, battle_bonus=initial_bb)
 
         for flip_result in flip_sequence:
             game_state = self.simulate_flip(game_state, flip_result)
@@ -358,7 +362,7 @@ class Simulator:
 
         return game_state
 
-    def simulate_all_round_outcomes(self, rounds_to_win: int = 3, max_flips: int = 5, rank: int = 1) -> Dict[str, GameState]:
+    def simulate_all_round_outcomes(self, rounds_to_win: int = 3, max_flips: int = 5, rank: int = 1, initial_bb: int = 0) -> Dict[str, GameState]:
         """Simulate all possible round outcomes"""
         from itertools import product
 
@@ -383,6 +387,6 @@ class Simulator:
 
                     if not early_end:
                         sequence_str = ''.join(['W' if f else 'L' for f in flip_sequence])
-                        results[sequence_str] = self.simulate_round(list(flip_sequence), rank=rank)
+                        results[sequence_str] = self.simulate_round(list(flip_sequence), rank=rank, initial_bb=initial_bb)
 
         return results

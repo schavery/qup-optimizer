@@ -33,7 +33,7 @@ class LayoutEvaluator:
     """Evaluate candidate layouts by simulating all round outcomes"""
 
     def __init__(self, rank: int = 31, upgrade_configs: Dict[str, List[int]] = None,
-                 adjacency_generator=None):
+                 adjacency_generator=None, initial_bb: int = 0):
         """
         Initialize evaluator
 
@@ -41,10 +41,12 @@ class LayoutEvaluator:
             rank: Player rank (default 31 = Grandmaster 1)
             upgrade_configs: Optional upgrade levels for static nodes
             adjacency_generator: Optional generator for calculating adjacency scores
+            initial_bb: Initial battle bonus at start of round (default 0)
         """
         self.rank = rank
         self.upgrade_configs = upgrade_configs or {}
         self.adjacency_generator = adjacency_generator
+        self.initial_bb = initial_bb
 
     def create_node_definitions(self, layout: Dict[str, Tuple[int, int, int]]) -> Dict[str, NodeDefinition]:
         """
@@ -95,8 +97,8 @@ class LayoutEvaluator:
         # Create simulator with this layout
         sim = Simulator(all_node_defs, layout=grid_layout)
 
-        # Run all round outcomes with proper rank
-        all_outcomes = sim.simulate_all_round_outcomes(rounds_to_win=3, max_flips=5, rank=self.rank)
+        # Run all round outcomes with proper rank and initial BB
+        all_outcomes = sim.simulate_all_round_outcomes(rounds_to_win=3, max_flips=5, rank=self.rank, initial_bb=self.initial_bb)
 
         # Extract Q values, trigger counts, and efficiency
         q_values = []

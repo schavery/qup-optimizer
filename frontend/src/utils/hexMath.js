@@ -5,9 +5,11 @@ export const HEX_SIZE = 35
 export const HEX_SPACING = HEX_SIZE * 1.8
 
 // Convert cube coordinates (q, r, s) to pixel coordinates
+// Rotated 60 degrees left so (0, -1, 1) points north
 export function cubeToPixel(q, r, s) {
-  const x = HEX_SPACING * (3/2 * q)
-  const y = HEX_SPACING * (Math.sqrt(3)/2 * q + Math.sqrt(3) * r)
+  // Original pointy-top orientation rotated 60 degrees CCW
+  const x = HEX_SPACING * (Math.sqrt(3) * q + Math.sqrt(3)/2 * r)
+  const y = HEX_SPACING * (3/2 * r)
   return { x, y }
 }
 

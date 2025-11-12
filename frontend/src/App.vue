@@ -4,6 +4,17 @@
       <h1>Qup Skill Tree Optimizer</h1>
       <div class="controls">
         <label>
+          Initial BB:
+          <input
+            type="number"
+            v-model.number="initialBB"
+            @input="debouncedEvaluate"
+            min="0"
+            max="100"
+            class="bb-input"
+          />
+        </label>
+        <label>
           Rank:
           <select v-model.number="rank" @change="debouncedEvaluate">
             <optgroup label="Bronze">
@@ -93,6 +104,7 @@ export default {
     const movablePositions = ref({})
     const upgrades = ref({})
     const rank = ref(31)
+    const initialBB = ref(0)
     const evaluationResult = ref(null)
     const evaluating = ref(false)
     const evaluationError = ref(null)
@@ -179,7 +191,8 @@ export default {
         const result = await api.evaluateLayout(
           movablePositions.value,
           upgrades.value,
-          rank.value
+          rank.value,
+          initialBB.value
         )
         evaluationResult.value = result
       } catch (err) {
@@ -217,9 +230,12 @@ export default {
 
     async function randomizeLayout() {
       try {
-        const response = await api.generateLayouts(1, rank.value, null, upgrades.value)
+        console.log('Generating random layout...')
+        const response = await api.generateLayouts(1, rank.value, Date.now(), upgrades.value)
+        console.log('Response:', response)
         if (response.layouts && response.layouts.length > 0) {
           const layout = response.layouts[0].layout
+          console.log('Generated layout:', layout)
           // Extract only movable nodes
           const newPositions = {}
           for (const [name, pos] of Object.entries(layout)) {
@@ -227,11 +243,13 @@ export default {
               newPositions[name] = pos
             }
           }
+          console.log('New movable positions:', newPositions)
           movablePositions.value = newPositions
           evaluateLayout()
         }
       } catch (err) {
         console.error('Failed to generate layout:', err)
+        evaluationError.value = 'Failed to generate random layout: ' + (err.response?.data?.error || err.message)
       }
     }
 
@@ -265,6 +283,7 @@ export default {
       movablePositions,
       upgrades,
       rank,
+      initialBB,
       rankInfo,
       evaluationResult,
       evaluating,
@@ -323,6 +342,22 @@ export default {
   border: 1px solid #2a2a3e;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.bb-input {
+  margin-left: 8px;
+  padding: 6px 12px;
+  width: 70px;
+  background: #0f0f1e;
+  color: #eee;
+  border: 1px solid #2a2a3e;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.bb-input:focus {
+  outline: none;
+  border-color: #5a9a7a;
 }
 
 .rank-info {

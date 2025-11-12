@@ -1,6 +1,38 @@
 <template>
   <div class="upgrade-panel">
-    <h3>Upgrades ({{ totalPoints }} / {{ budget }} points)</h3>
+    <div class="panel-header">
+      <h3>Upgrades ({{ totalPoints }} / {{ budget }} points)</h3>
+      <button @click="showOptimizer = !showOptimizer" class="btn-optimize">
+        {{ showOptimizer ? 'Hide' : 'Optimize' }}
+      </button>
+    </div>
+
+    <div v-if="showOptimizer" class="optimizer-section">
+      <div class="optimizer-controls">
+        <button @click="generateOptimizedConfigs" :disabled="loading" class="btn-generate">
+          {{ loading ? 'Generating...' : 'Generate Top 5' }}
+        </button>
+      </div>
+      <div v-if="optimizedConfigs.length > 0" class="config-list">
+        <div
+          v-for="(config, idx) in optimizedConfigs"
+          :key="idx"
+          class="config-item"
+          @click="applyConfig(config)"
+        >
+          <div class="config-header">
+            <span class="config-rank">#{{ idx + 1 }}</span>
+            <span class="config-points">{{ getTotalPoints(config) }}pts</span>
+          </div>
+          <div class="config-details">
+            <div v-for="(levels, nodeName) in config" :key="nodeName" class="config-node">
+              <span class="node-name">{{ nodeName }}:</span>
+              <span class="node-levels">[{{ levels.join(', ') }}]</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <div class="upgrades-list">
       <div
@@ -62,6 +94,13 @@ export default {
     }
   },
   emits: ['update:upgrades'],
+  data() {
+    return {
+      showOptimizer: false,
+      optimizedConfigs: [],
+      loading: false
+    }
+  },
   computed: {
     totalPoints() {
       let total = 0
@@ -74,6 +113,61 @@ export default {
     }
   },
   methods: {
+    async generateOptimizedConfigs() {
+      this.loading = true
+      try {
+        console.log('Generating upgrade configs with budget:', this.budget)
+        const response = await fetch('/api/generate-upgrades', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ budget: this.budget, strategy: 'tiered' })
+        })
+
+        if (!response.ok) {
+          const error = await response.json()
+          throw new Error(error.error || 'Failed to generate configs')
+        }
+
+        const data = await response.json()
+        console.log('Generated configs:', data)
+        this.optimizedConfigs = data.configs.slice(0, 5)
+        console.log('Showing top 5:', this.optimizedConfigs)
+      } catch (err) {
+        console.error('Failed to generate configs:', err)
+        alert('Error: ' + err.message)
+      } finally {
+        this.loading = false
+      }
+    },
+
+    applyConfig(config) {
+      console.log('Applying config:', config)
+      const newUpgrades = {}
+
+      // Initialize all static nodes with zeros first
+      for (const name in this.staticNodes) {
+        newUpgrades[name] = new Array(this.staticNodes[name].upgrade_paths.length).fill(0)
+      }
+
+      // Then apply the config
+      for (const [nodeName, levels] of Object.entries(config)) {
+        newUpgrades[nodeName] = levels
+      }
+
+      console.log('New upgrades:', newUpgrades)
+      this.$emit('update:upgrades', newUpgrades)
+      this.showOptimizer = false
+    },
+
+    getTotalPoints(config) {
+      let total = 0
+      for (const levels of Object.values(config)) {
+        if (Array.isArray(levels)) {
+          total += levels.reduce((sum, level) => sum + level, 0)
+        }
+      }
+      return total
+    },
     getNodePoints(nodeName) {
       const levels = this.upgrades[nodeName]
       if (!levels || !Array.isArray(levels)) return 0
@@ -137,10 +231,124 @@ export default {
   overflow-y: auto;
 }
 
-h3 {
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 15px;
+}
+
+h3 {
+  margin: 0;
   color: #eee;
   font-size: 16px;
+}
+
+.btn-optimize {
+  padding: 4px 12px;
+  background: #4a4a6e;
+  color: #eee;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: background 0.2s;
+}
+
+.btn-optimize:hover {
+  background: #5a5a7e;
+}
+
+.optimizer-section {
+  background: #0f0f1e;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 15px;
+  border: 1px solid #2a2a3e;
+}
+
+.optimizer-controls {
+  margin-bottom: 10px;
+}
+
+.btn-generate {
+  width: 100%;
+  padding: 8px;
+  background: #5a9a7a;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.btn-generate:hover:not(:disabled) {
+  background: #4a8a6a;
+}
+
+.btn-generate:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.config-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.config-item {
+  background: #1a1a2e;
+  padding: 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #2a2a3e;
+  transition: all 0.2s;
+}
+
+.config-item:hover {
+  background: #252538;
+  border-color: #5a9a7a;
+}
+
+.config-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.config-rank {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.config-points {
+  color: #ffa500;
+  font-size: 12px;
+}
+
+.config-details {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.config-node {
+  font-size: 11px;
+  color: #ccc;
+}
+
+.node-name {
+  color: #888;
+}
+
+.node-levels {
+  color: #5a9a7a;
+  font-weight: 500;
 }
 
 .upgrades-list {

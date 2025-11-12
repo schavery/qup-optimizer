@@ -9,11 +9,12 @@ export const api = {
     return response.data
   },
 
-  async evaluateLayout(layout, upgrades, rank) {
+  async evaluateLayout(layout, upgrades, rank, initialBB = 0) {
     const response = await axios.post(`${API_BASE}/evaluate`, {
       layout,
       upgrades,
-      rank
+      rank,
+      initial_bb: initialBB
     })
     return response.data
   },

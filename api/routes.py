@@ -48,15 +48,21 @@ def evaluate_layout():
         layout = deserialize_layout(data['layout'])
         upgrades = deserialize_upgrade_config(data.get('upgrades', {}))
         rank = data.get('rank', 31)
+        initial_bb = data.get('initial_bb', 0)
 
         # Validate rank
         if not (1 <= rank <= 40):
             return jsonify({"error": "Rank must be between 1 and 40"}), 400
 
+        # Validate initial_bb
+        if initial_bb < 0 or initial_bb > 100:
+            return jsonify({"error": "Initial BB must be between 0 and 100"}), 400
+
         # Create evaluator and evaluate
         evaluator = LayoutEvaluator(
             rank=rank,
-            upgrade_configs=upgrades
+            upgrade_configs=upgrades,
+            initial_bb=initial_bb
         )
 
         result = evaluator.evaluate_layout(layout)
@@ -96,8 +102,7 @@ def generate_layouts():
 
         # Generate candidates
         generator = AdjacencyAwareGenerator(
-            static_nodes=NODES,
-            movable_nodes=MOVABLE_NODES,
+            max_radius=8,
             seed=seed
         )
 
@@ -147,12 +152,12 @@ def generate_upgrades():
             return jsonify({"error": "Strategy must be 'tiered' or 'exhaustive'"}), 400
 
         # Generate configs
-        generator = UpgradeConfigGenerator(NODES)
+        generator = UpgradeConfigGenerator()
 
         if strategy == 'tiered':
             configs = generator.generate_tiered_configs(budget)
         else:
-            configs = generator.generate_all_valid_configs(budget)
+            configs = generator.generate_all_configs(budget)
 
         # Convert to JSON-serializable format
         configs_json = [

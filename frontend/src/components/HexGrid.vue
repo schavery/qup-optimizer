@@ -37,7 +37,7 @@
             dominant-baseline="middle"
             class="node-label node-label-static"
           >
-            {{ abbreviate(name) }}
+            {{ name }}
           </text>
         </g>
 
@@ -46,21 +46,21 @@
           v-for="(pos, name) in movablePositions"
           :key="`movable-${name}`"
           :class="{ 'dragging': draggingNode === name }"
-          @mousedown="startDrag($event, name)"
         >
           <path
             :d="getHexPath({q: pos[0], r: pos[1], s: pos[2]})"
             class="hex-movable"
-            :style="draggingNode === name ? `transform: translate(${dragOffset.x}px, ${dragOffset.y}px)` : ''"
+            @mousedown="startDrag($event, name)"
           />
           <text
-            :x="cubeToPixel(pos[0], pos[1], pos[2]).x + (draggingNode === name ? dragOffset.x : 0)"
-            :y="cubeToPixel(pos[0], pos[1], pos[2]).y + (draggingNode === name ? dragOffset.y : 0)"
+            :x="cubeToPixel(pos[0], pos[1], pos[2]).x"
+            :y="cubeToPixel(pos[0], pos[1], pos[2]).y"
             text-anchor="middle"
             dominant-baseline="middle"
             class="node-label node-label-movable"
+            @mousedown="startDrag($event, name)"
           >
-            {{ abbreviate(name) }}
+            {{ name }}
           </text>
         </g>
 
@@ -182,29 +182,16 @@ export default {
     },
 
     startDrag(event, nodeName) {
+      event.preventDefault()
       this.draggingNode = nodeName
-      this.dragStartPos = { x: event.clientX, y: event.clientY }
-      this.dragOffset = { x: 0, y: 0 }
     },
 
     handleMouseMove(event) {
-      if (!this.draggingNode) return
-
-      this.dragOffset = {
-        x: event.clientX - this.dragStartPos.x,
-        y: event.clientY - this.dragStartPos.y
-      }
+      // Not used anymore - we use click-to-place instead
     },
 
     handleMouseUp() {
-      if (!this.draggingNode) return
-
-      // Find nearest hex to drop position
-      const svgRect = event.currentTarget.getBoundingClientRect()
-      // TODO: Convert mouse position to hex coordinates and update position
-
-      this.draggingNode = null
-      this.dragOffset = { x: 0, y: 0 }
+      // Drag ends but we wait for hex click to place
     },
 
     handleHexClick(hex) {
@@ -374,18 +361,25 @@ svg {
 }
 
 .node-label {
-  font-size: 11px;
-  font-weight: bold;
-  pointer-events: none;
+  font-size: 10px;
+  font-weight: 600;
   user-select: none;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.8), 0 0 5px rgba(0, 0, 0, 0.6);
 }
 
 .node-label-static {
   fill: #eee;
+  pointer-events: none;
 }
 
 .node-label-movable {
   fill: #ddd;
+  cursor: pointer;
+  pointer-events: all;
+}
+
+.node-label-movable:hover {
+  fill: #fff;
 }
 
 .hex-ring-0 { stroke: #4a4a6e; }
