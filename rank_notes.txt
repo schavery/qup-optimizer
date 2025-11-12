@@ -56,3 +56,7 @@ Platinum 5:
 on win: +100Q, +2325xp, +1395 gold
 on loss: -60000Q, +1046 xp
 
+
+Diamond 3:
+on win: +100Q, +3075xp, +1845 gold
+on loss: -160000Q, +1384 xp

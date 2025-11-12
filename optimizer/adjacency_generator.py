@@ -39,6 +39,7 @@ class AdjacencyAwareGenerator(CandidateGenerator):
             'Focus',          # Triggers 1 random adjacent
             'Stimulant',      # Triggers adjacent with most AVS
             'Extra Dose',     # Triggers adjacent with most AVS
+            'Angel',          # NEW: Place Angel in trigger cluster for multiple triggers!
         ]
 
         # Nodes that benefit from being near trigger cluster but not critical
@@ -47,8 +48,8 @@ class AdjacencyAwareGenerator(CandidateGenerator):
             'Exhilaration',   # Flat Q per BB (no adjacency needed)
         ]
 
-        # Nodes that should be far from Panic (Angel needs to trigger last)
-        self.outer_nodes = ['Angel']
+        # Nodes that should be far from Panic (previously Angel was here)
+        self.outer_nodes = []
 
         # Nodes that don't need specific positioning
         self.flexible_nodes = [
