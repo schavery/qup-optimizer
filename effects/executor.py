@@ -37,6 +37,9 @@ class EffectExecutor:
         if handler is None:
             raise ValueError(f"Unknown effect type: {effect_type}")
 
+        # Increment trigger counter
+        game_state.total_triggers += 1
+
         return handler(node, game_state)
 
     def _add_to_qmult(self, node: NodeInstance, game_state: GameState) -> GameState:

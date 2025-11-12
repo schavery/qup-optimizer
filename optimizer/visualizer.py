@@ -98,14 +98,26 @@ class ResultVisualizer:
         print(f"Max Q: {result.max_q:,}")
         print(f"Avg Q: {result.avg_q:,.0f}")
         print(f"Positive outcomes: {result.positive_outcomes}/{result.total_outcomes}")
+
+        # Show trigger statistics
+        if result.trigger_counts:
+            trigger_values = list(result.trigger_counts.values())
+            min_triggers = min(trigger_values)
+            max_triggers = max(trigger_values)
+            avg_triggers = sum(trigger_values) / len(trigger_values)
+            print(f"Triggers - Min: {min_triggers}, Max: {max_triggers}, Avg: {avg_triggers:.1f}")
         print()
 
         # Sort outcomes by sequence
         sorted_outcomes = sorted(result.outcomes.items())
 
         # Print table header
-        print(f"{'Outcome':<10} {'Q Currency':>15} {'Status'}")
-        print("-" * 40)
+        if result.trigger_counts:
+            print(f"{'Outcome':<10} {'Q Currency':>15} {'Triggers':>10} {'Status'}")
+            print("-" * 50)
+        else:
+            print(f"{'Outcome':<10} {'Q Currency':>15} {'Status'}")
+            print("-" * 40)
 
         # Print each outcome
         for sequence, q_value in sorted_outcomes:
@@ -120,7 +132,11 @@ class ResultVisualizer:
             elif q_value == result.max_q:
                 marker = " ← BEST"
 
-            print(f"{sequence:<10} {q_value:>15,} {status}{marker}")
+            if result.trigger_counts:
+                triggers = result.trigger_counts.get(sequence, 0)
+                print(f"{sequence:<10} {q_value:>15,} {triggers:>10} {status}{marker}")
+            else:
+                print(f"{sequence:<10} {q_value:>15,} {status}{marker}")
 
         print()
 
@@ -159,13 +175,16 @@ class ResultVisualizer:
             results: List of EvaluationResults (assumed sorted)
             top_n: Number of top candidates to display
         """
-        print(f"\n{'='*60}")
-        print(f"TOP {top_n} CANDIDATES (by worst-case Q)")
-        print(f"{'='*60}\n")
+        print(f"\n{'='*70}")
+        print(f"TOP {top_n} CANDIDATES (by worst-case Q + adjacency score)")
+        print(f"{'='*70}\n")
 
         for i, result in enumerate(results[:top_n], 1):
             print(f"#{i}: Min Q: {result.min_q:,} | Avg Q: {result.avg_q:,.0f} | "
-                  f"Max Q: {result.max_q:,} | Positive: {result.positive_outcomes}/{result.total_outcomes}")
+                  f"Max Q: {result.max_q:,}")
+            print(f"    Adjacency: {result.adjacency_score:.1f} | "
+                  f"Max triggers/flip: {result.max_triggers_per_flip} | "
+                  f"Positive: {result.positive_outcomes}/{result.total_outcomes}")
 
         print()
 

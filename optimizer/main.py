@@ -15,6 +15,7 @@ Strategy:
 import argparse
 from typing import Dict, List
 from optimizer.candidate_generator import CandidateGenerator
+from optimizer.adjacency_generator import AdjacencyAwareGenerator
 from optimizer.evaluator import LayoutEvaluator
 from optimizer.visualizer import ResultVisualizer
 
@@ -50,15 +51,16 @@ def main():
         import json
         upgrade_configs = json.loads(args.upgrades)
 
-    # Step 1: Generate candidates
-    print("Step 1: Generating candidates using ring-based strategy...")
-    generator = CandidateGenerator(max_radius=8, seed=args.seed)
+    # Step 1: Generate candidates with adjacency awareness
+    print("Step 1: Generating candidates with trigger clustering around Panic...")
+    generator = AdjacencyAwareGenerator(max_radius=8, seed=args.seed)
     candidates = generator.generate_candidates(num_candidates=args.candidates)
     print(f"Generated {len(candidates)} valid layouts\n")
 
-    # Step 2: Evaluate candidates
+    # Step 2: Evaluate candidates with adjacency scoring
     print("Step 2: Evaluating all candidates...")
-    evaluator = LayoutEvaluator(rank=args.rank, upgrade_configs=upgrade_configs)
+    evaluator = LayoutEvaluator(rank=args.rank, upgrade_configs=upgrade_configs,
+                                adjacency_generator=generator)
     results = evaluator.evaluate_batch(candidates, verbose=True)
     print(f"Evaluation complete!\n")
 

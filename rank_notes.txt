@@ -1,0 +1,18 @@
+Bronze 5
+On win: +100Q, +220xp, +132 gold
+on loss: -200Q, +99xp
+
+Silver 1
+On win: +100Q, +300xp, +180 gold
+on loss:
+
+silver 2:
+on win:
+on loss: -650Q, +158xp
+
+Silver 3:
+
+Silver 4:
+On win: +100Q, +450xp, +270 gold
+on loss: -950Q, +203xp
+

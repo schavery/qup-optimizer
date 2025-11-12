@@ -270,10 +270,14 @@ class Simulator:
 
     def trigger_node(self, node: NodeInstance, game_state: GameState) -> GameState:
         """Trigger a single node and handle its special effects"""
+        # Check if node can still trigger (has AVS remaining)
+        if not node.can_trigger():
+            return game_state
+
         # Execute the node's primary effect
         game_state = self.executor.execute(node, game_state)
 
-        # Handle special trigger effects
+        # Handle special trigger effects (only if primary effect succeeded)
         effect_type = node.definition.effect_type
 
         if effect_type == "trigger_adjacent":
