@@ -23,7 +23,7 @@ Then open **http://localhost:5001** in your browser for an interactive hex grid 
 
 ## Screenshot
 
-![Qup Skill Tree Optimizer Web Interface](./screenshots/webview.png)
+![Qup Skill Tree Optimizer Web Interface](./screenshots/webview.png?raw=true)
 
 *Interactive hex grid with node drawer, upgrade panel, and real-time simulation results. Features include drag-and-drop node placement, adjacency trigger visualization, and localStorage persistence.*
 
