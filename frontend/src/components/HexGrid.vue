@@ -6,6 +6,36 @@
       <button @click="resetZoom" class="zoom-btn" title="Reset Zoom">⟲</button>
       <span class="zoom-level">{{ Math.round(zoom * 100) }}%</span>
     </div>
+
+    <!-- Node Drawer -->
+    <div class="node-drawer" :class="{ 'drawer-open': drawerOpen }">
+      <div class="drawer-toggle" @click="drawerOpen = !drawerOpen">
+        <span>{{ drawerOpen ? '▼' : '▲' }} Nodes ({{ unplacedNodes.length }})</span>
+        <button
+          v-if="placedNodes.length > 0"
+          @click.stop="recallAllNodes"
+          class="recall-btn"
+          title="Recall all nodes to drawer"
+        >
+          ↶ Recall All
+        </button>
+      </div>
+      <div class="drawer-content">
+        <div class="drawer-nodes">
+          <div
+            v-for="name in unplacedNodes"
+            :key="`drawer-${name}`"
+            class="drawer-node"
+            @mousedown="startDrawerDrag($event, name)"
+            @mouseenter="showTooltip($event, name, 'movable')"
+            @mouseleave="hideTooltip"
+          >
+            <div class="drawer-node-name">{{ name }}</div>
+            <div class="drawer-node-avs">AVS: {{ movableNodes[name] ? calculateTotalAVS(movableNodes[name], []) : 'N/A' }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
     <svg
       :width="svgWidth"
       :height="svgHeight"
@@ -57,15 +87,15 @@
           </text>
         </g>
 
-        <!-- Movable nodes (rendered as circles) -->
+        <!-- Movable nodes (rendered as circles) - only show placed nodes -->
         <g
-          v-for="(pos, name) in movablePositions"
+          v-for="name in placedNodes"
           :key="`movable-${name}`"
           :class="{ 'dragging': draggingNode === name }"
         >
           <circle
-            :cx="cubeToPixel(pos[0], pos[1], pos[2]).x"
-            :cy="cubeToPixel(pos[0], pos[1], pos[2]).y"
+            :cx="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).x"
+            :cy="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).y"
             :r="30"
             class="hex-movable-circle"
             @mousedown="startDrag($event, name)"
@@ -73,8 +103,8 @@
             @mouseleave="hideTooltip"
           />
           <text
-            :x="cubeToPixel(pos[0], pos[1], pos[2]).x"
-            :y="cubeToPixel(pos[0], pos[1], pos[2]).y - 5"
+            :x="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).x"
+            :y="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).y - 5"
             text-anchor="middle"
             dominant-baseline="middle"
             class="node-label node-label-movable"
@@ -85,8 +115,8 @@
             {{ name }}
           </text>
           <text
-            :x="cubeToPixel(pos[0], pos[1], pos[2]).x"
-            :y="cubeToPixel(pos[0], pos[1], pos[2]).y + 8"
+            :x="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).x"
+            :y="cubeToPixel(movablePositions[name][0], movablePositions[name][1], movablePositions[name][2]).y + 8"
             text-anchor="middle"
             dominant-baseline="middle"
             class="node-avs-label node-avs-label-movable"
@@ -185,6 +215,7 @@ export default {
       gridHexes: [],
       gridOrder: new Map(), // Maps position key to order index
       draggingNode: null,
+      draggingFromDrawer: false,
       dragStartPos: null,
       dragOffset: { x: 0, y: 0 },
       highlightedNeighbors: [],
@@ -194,7 +225,18 @@ export default {
       isPanning: false,
       panStartPos: null,
       hoveredNode: null,
-      tooltipPos: { x: 0, y: 0 }
+      tooltipPos: { x: 0, y: 0 },
+      drawerOpen: true
+    }
+  },
+  computed: {
+    unplacedNodes() {
+      // Return list of movable nodes that aren't on the grid
+      return Object.keys(this.movableNodes).filter(name => !this.movablePositions[name])
+    },
+    placedNodes() {
+      // Return list of movable nodes that are on the grid
+      return Object.keys(this.movableNodes).filter(name => this.movablePositions[name])
     }
   },
   mounted() {
@@ -312,10 +354,19 @@ export default {
       return abbrevs[name] || name.substring(0, 3).toUpperCase()
     },
 
+    startDrawerDrag(event, nodeName) {
+      event.preventDefault()
+      event.stopPropagation()
+      this.draggingNode = nodeName
+      this.draggingFromDrawer = true
+      this.dragStartPos = null // No starting position since it's from drawer
+    },
+
     startDrag(event, nodeName) {
       event.preventDefault()
       event.stopPropagation()
       this.draggingNode = nodeName
+      this.draggingFromDrawer = false
 
       // Store the starting position in case drag is cancelled
       this.dragStartPos = [...this.movablePositions[nodeName]]
@@ -407,18 +458,31 @@ export default {
 
       // End node dragging
       if (this.draggingNode) {
-        // Check if current position is valid, if not restore original
         const currentPos = this.movablePositions[this.draggingNode]
-        if (!currentPos || this.isOccupiedExcept(currentPos, this.draggingNode)) {
-          // Restore to original position
-          if (this.dragStartPos) {
+
+        if (this.draggingFromDrawer) {
+          // Dragging from drawer - if no valid position, just remove from grid (stays in drawer)
+          if (!currentPos || this.isOccupiedExcept(currentPos, this.draggingNode)) {
             const updated = { ...this.movablePositions }
-            updated[this.draggingNode] = this.dragStartPos
+            delete updated[this.draggingNode]
+            this.$emit('update:movablePositions', updated)
+          }
+        } else {
+          // Dragging from grid - check if valid position
+          if (!currentPos || this.isOccupiedExcept(currentPos, this.draggingNode)) {
+            // Invalid position - restore to original or remove from grid
+            const updated = { ...this.movablePositions }
+            if (this.dragStartPos) {
+              updated[this.draggingNode] = this.dragStartPos
+            } else {
+              delete updated[this.draggingNode]
+            }
             this.$emit('update:movablePositions', updated)
           }
         }
 
         this.draggingNode = null
+        this.draggingFromDrawer = false
         this.dragOffset = { x: 0, y: 0 }
         this.dragStartPos = null
       }
@@ -503,6 +567,11 @@ export default {
       this.zoom = 0.85
       this.panX = 0
       this.panY = 0
+    },
+
+    recallAllNodes() {
+      // Remove all movable nodes from the grid (send them back to drawer)
+      this.$emit('update:movablePositions', {})
     },
 
     updateSvgSize() {
@@ -684,6 +753,110 @@ export default {
   background: #0f0f1e;
   border-radius: 8px;
   position: relative;
+}
+
+/* Node Drawer */
+.node-drawer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(26, 26, 46, 0.98);
+  border-top: 2px solid #5a9a7a;
+  border-radius: 8px 8px 0 0;
+  z-index: 100;
+  transition: transform 0.3s ease;
+  max-height: 200px;
+}
+
+.node-drawer:not(.drawer-open) {
+  transform: translateY(calc(100% - 40px));
+}
+
+.drawer-toggle {
+  padding: 10px 20px;
+  background: #2a2a4e;
+  cursor: pointer;
+  text-align: center;
+  font-weight: 600;
+  color: #7aba9a;
+  user-select: none;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+}
+
+.drawer-toggle:hover {
+  background: #3a3a5e;
+}
+
+.recall-btn {
+  padding: 6px 12px;
+  background: #e88888;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.recall-btn:hover {
+  background: #f09898;
+  transform: scale(1.05);
+}
+
+.recall-btn:active {
+  transform: scale(0.95);
+}
+
+.drawer-content {
+  padding: 15px;
+  overflow-y: auto;
+  max-height: 160px;
+}
+
+.drawer-nodes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.drawer-node {
+  background: #3a7a5a;
+  border: 2px solid #5a9a7a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  cursor: grab;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.drawer-node:hover {
+  background: #4a8a6a;
+  border-color: #6aaa8a;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.drawer-node:active {
+  cursor: grabbing;
+}
+
+.drawer-node-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.drawer-node-avs {
+  font-size: 9px;
+  font-weight: 600;
+  color: #afa;
 }
 
 .zoom-controls {

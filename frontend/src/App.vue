@@ -201,27 +201,8 @@ export default {
           // Restore saved positions
           movablePositions.value = savedState.positions
         } else {
-          // Initialize default layout (place movable nodes in rings 5-7)
-          const movableNames = Object.keys(nodes.movable)
-          const rings = [5, 6, 7]
-          let nodeIdx = 0
-
-          for (const ring of rings) {
-            // Place nodes around the ring
-            for (let q = -ring; q <= ring && nodeIdx < movableNames.length; q++) {
-              for (let r = -ring; r <= ring && nodeIdx < movableNames.length; r++) {
-                const s = -q - r
-                if (Math.max(Math.abs(q), Math.abs(r), Math.abs(s)) === ring) {
-                  // Check if position is free
-                  if (!isOccupied([q, r, s], nodes.static, movablePositions.value)) {
-                    movablePositions.value[movableNames[nodeIdx]] = [q, r, s]
-                    nodeIdx++
-                    if (nodeIdx >= movableNames.length) break
-                  }
-                }
-              }
-            }
-          }
+          // Initialize with empty positions - all nodes start in drawer
+          movablePositions.value = {}
         }
 
         // Initial evaluation
