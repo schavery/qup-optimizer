@@ -189,6 +189,48 @@ def get_outcomes():
     return jsonify({"outcomes": outcomes})
 
 
+@api.route('/ranks', methods=['GET'])
+def get_ranks():
+    """Get all rank information"""
+    from data.ranks import RANK_DATA, get_rank_name
+
+    ranks_list = []
+    for rank_num in range(1, 41):
+        rewards = RANK_DATA[rank_num]
+        ranks_list.append({
+            "rank": rank_num,
+            "name": get_rank_name(rank_num),
+            "tier": rewards.tier_name,
+            "tier_level": rewards.tier_level,
+            "qup_per_flip": rewards.qup_per_flip,
+            "qdown_per_flip": rewards.qdown_per_flip,
+            "xp_win": rewards.xp_win,
+            "xp_loss": rewards.xp_loss,
+            "gold_win": rewards.gold_win
+        })
+
+    return jsonify({"ranks": ranks_list})
+
+
+@api.route('/rank/<int:rank_num>', methods=['GET'])
+def get_rank(rank_num):
+    """Get specific rank information"""
+    from data.ranks import get_rank_rewards, get_rank_name
+
+    rewards = get_rank_rewards(rank_num)
+    return jsonify({
+        "rank": rank_num,
+        "name": get_rank_name(rank_num),
+        "tier": rewards.tier_name,
+        "tier_level": rewards.tier_level,
+        "qup_per_flip": rewards.qup_per_flip,
+        "qdown_per_flip": rewards.qdown_per_flip,
+        "xp_win": rewards.xp_win,
+        "xp_loss": rewards.xp_loss,
+        "gold_win": rewards.gold_win
+    })
+
+
 @api.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""

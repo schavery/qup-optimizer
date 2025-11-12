@@ -6,11 +6,35 @@
         <label>
           Rank:
           <select v-model.number="rank" @change="debouncedEvaluate">
-            <option v-for="r in 10" :key="r" :value="30 + r">
-              {{ getRankName(30 + r) }}
-            </option>
+            <optgroup label="Bronze">
+              <option v-for="r in 5" :key="r" :value="r">Bronze {{ r }}</option>
+            </optgroup>
+            <optgroup label="Silver">
+              <option v-for="r in 5" :key="5+r" :value="5+r">Silver {{ r }}</option>
+            </optgroup>
+            <optgroup label="Gold">
+              <option v-for="r in 5" :key="10+r" :value="10+r">Gold {{ r }}</option>
+            </optgroup>
+            <optgroup label="Platinum">
+              <option v-for="r in 5" :key="15+r" :value="15+r">Platinum {{ r }}</option>
+            </optgroup>
+            <optgroup label="Diamond">
+              <option v-for="r in 5" :key="20+r" :value="20+r">Diamond {{ r }}</option>
+            </optgroup>
+            <optgroup label="Master">
+              <option v-for="r in 5" :key="25+r" :value="25+r">Master {{ r }}</option>
+            </optgroup>
+            <optgroup label="Grandmaster">
+              <option v-for="r in 5" :key="30+r" :value="30+r">Grandmaster {{ r }}</option>
+            </optgroup>
+            <optgroup label="Legend">
+              <option v-for="r in 5" :key="35+r" :value="35+r">Legend {{ r }}</option>
+            </optgroup>
           </select>
         </label>
+        <span class="rank-info" v-if="rankInfo">
+          Qdown: {{ formatQ(rankInfo.qdown_per_flip) }}
+        </span>
         <button @click="randomizeLayout" class="btn-secondary">
           Randomize Layout
         </button>
@@ -72,8 +96,19 @@ export default {
     const evaluationResult = ref(null)
     const evaluating = ref(false)
     const evaluationError = ref(null)
+    const rankInfo = ref(null)
 
     let evaluateTimeout = null
+
+    // Load rank info
+    async function loadRankInfo(r) {
+      try {
+        const response = await api.getRank(r)
+        rankInfo.value = response
+      } catch (err) {
+        console.error('Failed to load rank info:', err)
+      }
+    }
 
     // Load nodes from API
     onMounted(async () => {
@@ -81,6 +116,9 @@ export default {
         const nodes = await api.getNodes()
         staticNodes.value = nodes.static
         movableNodes.value = nodes.movable
+
+        // Load initial rank info
+        loadRankInfo(rank.value)
 
         // Initialize upgrades (all zeros)
         for (const [name, node] of Object.entries(nodes.static)) {
@@ -154,9 +192,17 @@ export default {
 
     function debouncedEvaluate() {
       if (evaluateTimeout) clearTimeout(evaluateTimeout)
+      loadRankInfo(rank.value)
       evaluateTimeout = setTimeout(() => {
         evaluateLayout()
       }, 500)
+    }
+
+    function formatQ(value) {
+      const absValue = Math.abs(value)
+      if (absValue >= 1000000) return `${(value / 1000000).toFixed(2)}M`
+      if (absValue >= 1000) return `${(value / 1000).toFixed(1)}K`
+      return value.toString()
     }
 
     function handlePositionsUpdate(newPositions) {
@@ -213,18 +259,13 @@ export default {
       evaluateLayout()
     }
 
-    function getRankName(r) {
-      if (r >= 31) return `Grandmaster ${r - 30}`
-      if (r >= 21) return `Master ${r - 20}`
-      return `Rank ${r}`
-    }
-
     return {
       staticNodes,
       movableNodes,
       movablePositions,
       upgrades,
       rank,
+      rankInfo,
       evaluationResult,
       evaluating,
       evaluationError,
@@ -232,8 +273,8 @@ export default {
       handleUpgradesUpdate,
       randomizeLayout,
       resetLayout,
-      getRankName,
-      debouncedEvaluate
+      debouncedEvaluate,
+      formatQ
     }
   }
 }
@@ -282,6 +323,16 @@ export default {
   border: 1px solid #2a2a3e;
   border-radius: 4px;
   cursor: pointer;
+}
+
+.rank-info {
+  font-size: 13px;
+  color: #e88;
+  font-weight: 500;
+  padding: 6px 12px;
+  background: rgba(238, 136, 136, 0.1);
+  border-radius: 4px;
+  border: 1px solid rgba(238, 136, 136, 0.2);
 }
 
 button {

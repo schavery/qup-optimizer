@@ -52,9 +52,3 @@ Platinum 4:
 on win: +100Q, +2100xp, +1260 gold
 on loss: -42500Q, +945 xp
 
-
-
-
-
-
-is AVS resetting every flip?

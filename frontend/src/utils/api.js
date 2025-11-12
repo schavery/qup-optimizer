@@ -39,5 +39,15 @@ export const api = {
   async getOutcomes() {
     const response = await axios.get(`${API_BASE}/outcomes`)
     return response.data
+  },
+
+  async getRanks() {
+    const response = await axios.get(`${API_BASE}/ranks`)
+    return response.data
+  },
+
+  async getRank(rank) {
+    const response = await axios.get(`${API_BASE}/rank/${rank}`)
+    return response.data
   }
 }
