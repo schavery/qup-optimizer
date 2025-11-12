@@ -88,7 +88,7 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import HexGrid from './components/HexGrid.vue'
 import UpgradePanel from './components/UpgradePanel.vue'
 import ResultsPanel from './components/ResultsPanel.vue'
@@ -114,6 +114,46 @@ export default {
 
     let evaluateTimeout = null
 
+    // LocalStorage keys
+    const STORAGE_KEYS = {
+      MOVABLE_POSITIONS: 'qup_movable_positions',
+      UPGRADES: 'qup_upgrades',
+      RANK: 'qup_rank',
+      INITIAL_BB: 'qup_initial_bb'
+    }
+
+    // Save state to localStorage
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEYS.MOVABLE_POSITIONS, JSON.stringify(movablePositions.value))
+        localStorage.setItem(STORAGE_KEYS.UPGRADES, JSON.stringify(upgrades.value))
+        localStorage.setItem(STORAGE_KEYS.RANK, rank.value.toString())
+        localStorage.setItem(STORAGE_KEYS.INITIAL_BB, initialBB.value.toString())
+      } catch (err) {
+        console.error('Failed to save state:', err)
+      }
+    }
+
+    // Load state from localStorage
+    function loadState() {
+      try {
+        const savedPositions = localStorage.getItem(STORAGE_KEYS.MOVABLE_POSITIONS)
+        const savedUpgrades = localStorage.getItem(STORAGE_KEYS.UPGRADES)
+        const savedRank = localStorage.getItem(STORAGE_KEYS.RANK)
+        const savedBB = localStorage.getItem(STORAGE_KEYS.INITIAL_BB)
+
+        return {
+          positions: savedPositions ? JSON.parse(savedPositions) : null,
+          upgrades: savedUpgrades ? JSON.parse(savedUpgrades) : null,
+          rank: savedRank ? parseInt(savedRank) : null,
+          initialBB: savedBB ? parseInt(savedBB) : null
+        }
+      } catch (err) {
+        console.error('Failed to load state:', err)
+        return { positions: null, upgrades: null, rank: null, initialBB: null }
+      }
+    }
+
     // Load rank info
     async function loadRankInfo(r) {
       try {
@@ -131,30 +171,53 @@ export default {
         staticNodes.value = nodes.static
         movableNodes.value = nodes.movable
 
-        // Load initial rank info
-        loadRankInfo(rank.value)
+        // Load saved state from localStorage
+        const savedState = loadState()
 
-        // Initialize upgrades (all zeros)
-        for (const [name, node] of Object.entries(nodes.static)) {
-          upgrades.value[name] = new Array(node.upgrade_paths.length).fill(0)
+        // Restore rank and BB if saved
+        if (savedState.rank !== null) {
+          rank.value = savedState.rank
+        }
+        if (savedState.initialBB !== null) {
+          initialBB.value = savedState.initialBB
         }
 
-        // Initialize default layout (place movable nodes in rings 5-7)
-        const movableNames = Object.keys(nodes.movable)
-        const rings = [5, 6, 7]
-        let nodeIdx = 0
+        // Load rank info
+        loadRankInfo(rank.value)
 
-        for (const ring of rings) {
-          // Place nodes around the ring
-          for (let q = -ring; q <= ring && nodeIdx < movableNames.length; q++) {
-            for (let r = -ring; r <= ring && nodeIdx < movableNames.length; r++) {
-              const s = -q - r
-              if (Math.max(Math.abs(q), Math.abs(r), Math.abs(s)) === ring) {
-                // Check if position is free
-                if (!isOccupied([q, r, s], nodes.static, movablePositions.value)) {
-                  movablePositions.value[movableNames[nodeIdx]] = [q, r, s]
-                  nodeIdx++
-                  if (nodeIdx >= movableNames.length) break
+        // Initialize or restore upgrades
+        if (savedState.upgrades) {
+          // Restore saved upgrades
+          upgrades.value = savedState.upgrades
+        } else {
+          // Initialize upgrades (all zeros)
+          for (const [name, node] of Object.entries(nodes.static)) {
+            upgrades.value[name] = new Array(node.upgrade_paths.length).fill(0)
+          }
+        }
+
+        // Initialize or restore movable positions
+        if (savedState.positions) {
+          // Restore saved positions
+          movablePositions.value = savedState.positions
+        } else {
+          // Initialize default layout (place movable nodes in rings 5-7)
+          const movableNames = Object.keys(nodes.movable)
+          const rings = [5, 6, 7]
+          let nodeIdx = 0
+
+          for (const ring of rings) {
+            // Place nodes around the ring
+            for (let q = -ring; q <= ring && nodeIdx < movableNames.length; q++) {
+              for (let r = -ring; r <= ring && nodeIdx < movableNames.length; r++) {
+                const s = -q - r
+                if (Math.max(Math.abs(q), Math.abs(r), Math.abs(s)) === ring) {
+                  // Check if position is free
+                  if (!isOccupied([q, r, s], nodes.static, movablePositions.value)) {
+                    movablePositions.value[movableNames[nodeIdx]] = [q, r, s]
+                    nodeIdx++
+                    if (nodeIdx >= movableNames.length) break
+                  }
                 }
               }
             }
@@ -167,6 +230,15 @@ export default {
         console.error('Failed to load nodes:', err)
         evaluationError.value = 'Failed to load node definitions'
       }
+    })
+
+    // Watch for changes to rank and initialBB and save to localStorage
+    watch(rank, () => {
+      saveState()
+    })
+
+    watch(initialBB, () => {
+      saveState()
     })
 
     function isOccupied(pos, staticNodesObj, movablePositionsObj) {
@@ -222,11 +294,13 @@ export default {
 
     function handlePositionsUpdate(newPositions) {
       movablePositions.value = newPositions
+      saveState()
       debouncedEvaluate()
     }
 
     function handleUpgradesUpdate(newUpgrades) {
       upgrades.value = newUpgrades
+      saveState()
       debouncedEvaluate()
     }
 
@@ -271,6 +345,9 @@ export default {
           console.log('New movable positions:', newPositions)
           movablePositions.value = newPositions
 
+          // Save the new layout
+          saveState()
+
           // Evaluate the layout to update UI
           evaluateLayout()
         }
@@ -303,6 +380,7 @@ export default {
       }
 
       movablePositions.value = newPositions
+      saveState()
       evaluateLayout()
     }
 
