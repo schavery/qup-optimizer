@@ -138,6 +138,16 @@
           />
         </g>
 
+        <!-- Trigger overlays (show nodes that would be triggered) -->
+        <g v-if="triggeredNodes.length > 0">
+          <path
+            v-for="(node, idx) in triggeredNodes"
+            :key="`trigger-${idx}`"
+            :d="getHexPath(node)"
+            :class="['hex-trigger-overlay', triggerStyle === 'dashed' ? 'hex-trigger-dashed' : 'hex-trigger-solid']"
+          />
+        </g>
+
         <!-- Node order labels (rendered last so they're on top) -->
         <g v-for="hex in gridHexes" :key="`order-${hex.q},${hex.r},${hex.s}`">
           <text
@@ -219,12 +229,15 @@ export default {
       dragStartPos: null,
       dragOffset: { x: 0, y: 0 },
       highlightedNeighbors: [],
+      triggeredNodes: [], // Nodes that would be triggered (for overlay)
+      triggerStyle: 'solid', // 'solid' or 'dashed'
       zoom: 0.85,
       panX: 0,
       panY: 0,
       isPanning: false,
       panStartPos: null,
       hoveredNode: null,
+      hoveredNodeName: null,
       tooltipPos: { x: 0, y: 0 },
       drawerOpen: true
     }
@@ -597,6 +610,10 @@ export default {
         base_avs: upgradedAVS,  // Override with upgraded AVS
         effect_params: upgradedParams  // Override with upgraded params
       }
+      this.hoveredNodeName = nodeName
+
+      // Calculate trigger overlays based on effect type
+      this.calculateTriggerOverlays(nodeName, node, upgradedParams)
 
       // Position tooltip near mouse
       const rect = this.$el.getBoundingClientRect()
@@ -608,6 +625,81 @@ export default {
 
     hideTooltip() {
       this.hoveredNode = null
+      this.hoveredNodeName = null
+      this.triggeredNodes = []
+    },
+
+    calculateTriggerOverlays(nodeName, node, upgradedParams) {
+      // Get node position
+      let nodePos = null
+      if (this.staticNodes[nodeName]) {
+        nodePos = this.staticNodes[nodeName].position
+      } else if (this.movablePositions[nodeName]) {
+        nodePos = this.movablePositions[nodeName]
+      }
+
+      if (!nodePos) {
+        this.triggeredNodes = []
+        return
+      }
+
+      const effectType = node.effect_type
+      const triggered = []
+      let style = 'solid'
+
+      // Handle different trigger types
+      if (effectType === 'trigger_adjacent') {
+        // All adjacent nodes - guaranteed (solid)
+        const neighbors = getNeighbors(nodePos[0], nodePos[1], nodePos[2])
+        neighbors.forEach(([q, r, s]) => {
+          if (this.hasNodeAt([q, r, s])) {
+            triggered.push({ q, r, s })
+          }
+        })
+        style = 'solid'
+      } else if (effectType === 'trigger_random_adjacent') {
+        // Random adjacent - dashed
+        const neighbors = getNeighbors(nodePos[0], nodePos[1], nodePos[2])
+        neighbors.forEach(([q, r, s]) => {
+          if (this.hasNodeAt([q, r, s])) {
+            triggered.push({ q, r, s })
+          }
+        })
+        style = 'dashed'
+      } else if (effectType === 'trigger_adjacent_most_avs') {
+        // Adjacent with most AVS - dashed (depends on AVS values)
+        const neighbors = getNeighbors(nodePos[0], nodePos[1], nodePos[2])
+        neighbors.forEach(([q, r, s]) => {
+          if (this.hasNodeAt([q, r, s])) {
+            triggered.push({ q, r, s })
+          }
+        })
+        style = 'dashed'
+      } else if (effectType === 'trigger_adjacent_per_loss') {
+        // Adjacent per loss - dashed (depends on battle state)
+        const neighbors = getNeighbors(nodePos[0], nodePos[1], nodePos[2])
+        neighbors.forEach(([q, r, s]) => {
+          if (this.hasNodeAt([q, r, s])) {
+            triggered.push({ q, r, s })
+          }
+        })
+        style = 'dashed'
+      }
+      // For trigger_most_avs and other non-adjacent triggers, don't show overlay
+
+      this.triggeredNodes = triggered
+      this.triggerStyle = style
+    },
+
+    hasNodeAt(pos) {
+      // Check if any node (static or movable) exists at this position
+      for (const node of Object.values(this.staticNodes)) {
+        if (positionEquals(node.position, pos)) return true
+      }
+      for (const nodePos of Object.values(this.movablePositions)) {
+        if (positionEquals(nodePos, pos)) return true
+      }
+      return false
     },
 
     calculateTotalAVS(node, upgradeLevels) {
@@ -982,6 +1074,25 @@ svg:active {
   stroke: rgba(255, 200, 100, 0.5);
   stroke-width: 2;
   pointer-events: none;
+}
+
+/* Trigger overlay styles */
+.hex-trigger-overlay {
+  fill: none;
+  pointer-events: none;
+  stroke-width: 3;
+}
+
+.hex-trigger-solid {
+  stroke: rgba(100, 200, 255, 0.9);
+  stroke-dasharray: none;
+  filter: drop-shadow(0 0 4px rgba(100, 200, 255, 0.6));
+}
+
+.hex-trigger-dashed {
+  stroke: rgba(255, 150, 100, 0.9);
+  stroke-dasharray: 8, 4;
+  filter: drop-shadow(0 0 4px rgba(255, 150, 100, 0.5));
 }
 
 .node-label {
