@@ -458,6 +458,18 @@ python -m optimizer.optimize_upgrades --budget 18 --strategy exhaustive
 - ✅ RESTful API with 8 endpoints
 - ✅ Initial BB support throughout simulation chain
 
+## Limitations
+
+This optimizer has several intentional scope limitations:
+
+- **Single character only**: Simulates Leila (Medic class) in solo play - does not model team members or team interactions
+- **Static rank**: Does not simulate rank progression through Q gain - you must manually change rank to test different tiers
+- **No XP/leveling**: Does not model XP gain or skill node unlocking - assumes all nodes are already unlocked
+- **No items/gear**: Does not account for equipment, items, or gear bonuses that may affect gameplay
+- **No meta-progression**: Does not track persistent upgrades or unlocks outside of the skill tree itself
+
+The focus is purely on **optimizing skill tree layout and upgrade allocation** for a given rank and initial state.
+
 ## Future Improvements
 
 1. **Simulated Annealing**: Explore global optima beyond local search
