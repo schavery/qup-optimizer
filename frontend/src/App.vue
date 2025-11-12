@@ -46,8 +46,8 @@
         <span class="rank-info" v-if="rankInfo">
           Qdown: {{ formatQ(rankInfo.qdown_per_flip) }}
         </span>
-        <button @click="randomizeLayout" class="btn-secondary">
-          Randomize Layout
+        <button @click="randomizeLayout" class="btn-secondary" :disabled="evaluating">
+          {{ evaluating ? 'Optimizing...' : 'Generate Optimized Layout' }}
         </button>
         <button @click="resetLayout" class="btn-secondary">
           Reset
@@ -230,12 +230,35 @@ export default {
 
     async function randomizeLayout() {
       try {
-        console.log('Generating random layout...')
-        const response = await api.generateLayouts(1, rank.value, Date.now(), upgrades.value)
+        console.log('Generating refined layout...')
+        evaluating.value = true
+        evaluationError.value = null
+
+        const response = await api.generateLayouts(
+          20,  // Generate 20 candidates
+          rank.value,
+          Date.now(),
+          upgrades.value,
+          {
+            initialBB: initialBB.value,
+            refine: true,           // Enable refinement
+            refineCount: 5,         // Refine top 5 diverse candidates
+            refineIterations: 30    // 30 iterations per candidate
+          }
+        )
+
         console.log('Response:', response)
+
+        if (response.cache_stats) {
+          console.log('Cache stats:', response.cache_stats)
+          console.log(`  Hit rate: ${(response.cache_stats.hit_rate * 100).toFixed(1)}%`)
+          console.log(`  Refined: ${response.refined_count} candidates`)
+        }
+
         if (response.layouts && response.layouts.length > 0) {
           const layout = response.layouts[0].layout
-          console.log('Generated layout:', layout)
+          console.log('Best refined layout (min_q:', response.layouts[0].min_q, ')')
+
           // Extract only movable nodes
           const newPositions = {}
           for (const [name, pos] of Object.entries(layout)) {
@@ -245,11 +268,15 @@ export default {
           }
           console.log('New movable positions:', newPositions)
           movablePositions.value = newPositions
+
+          // Evaluate the layout to update UI
           evaluateLayout()
         }
       } catch (err) {
         console.error('Failed to generate layout:', err)
-        evaluationError.value = 'Failed to generate random layout: ' + (err.response?.data?.error || err.message)
+        evaluationError.value = 'Failed to generate refined layout: ' + (err.response?.data?.error || err.message)
+      } finally {
+        evaluating.value = false
       }
     }
 

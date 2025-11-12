@@ -8,6 +8,7 @@ from core.layout import GridLayout
 from optimizer.evaluator import LayoutEvaluator
 from optimizer.adjacency_generator import AdjacencyAwareGenerator
 from optimizer.upgrade_generator import UpgradeConfigGenerator
+from optimizer.local_search import LocalSearchRefiner, select_diverse_candidates
 from api.serializers import (
     serialize_node_definition,
     serialize_evaluation_result,
@@ -75,14 +76,18 @@ def evaluate_layout():
 
 @api.route('/generate-layouts', methods=['POST'])
 def generate_layouts():
-    """Generate candidate layouts
+    """Generate candidate layouts with optional refinement
 
     Request body:
     {
         "count": 20,
         "rank": 31,
         "seed": 42,
-        "upgrades": {"Panic": [6, 0], ...}
+        "upgrades": {"Panic": [6, 0], ...},
+        "initial_bb": 0,
+        "refine": true,              # Enable refinement (default: true)
+        "refine_count": 5,           # Number of diverse candidates to refine (default: 5)
+        "refine_iterations": 30      # Max iterations per candidate (default: 30)
     }
     """
     try:
@@ -91,7 +96,13 @@ def generate_layouts():
         count = data.get('count', 10)
         rank = data.get('rank', 31)
         seed = data.get('seed', None)
+        initial_bb = data.get('initial_bb', 0)
         upgrades = deserialize_upgrade_config(data.get('upgrades', {}))
+
+        # Refinement parameters
+        refine = data.get('refine', True)
+        refine_count = data.get('refine_count', 5)
+        refine_iterations = data.get('refine_iterations', 30)
 
         # Validate inputs
         if count > 1000:
@@ -99,6 +110,9 @@ def generate_layouts():
 
         if not (1 <= rank <= 40):
             return jsonify({"error": "Rank must be between 1 and 40"}), 400
+
+        if initial_bb < 0 or initial_bb > 100:
+            return jsonify({"error": "Initial BB must be between 0 and 100"}), 400
 
         # Generate candidates
         generator = AdjacencyAwareGenerator(
@@ -108,21 +122,70 @@ def generate_layouts():
 
         candidates = generator.generate_candidates(num_candidates=count)
 
-        # Evaluate all candidates
+        # Evaluate all candidates with caching enabled
         evaluator = LayoutEvaluator(
             rank=rank,
-            upgrade_configs=upgrades
+            upgrade_configs=upgrades,
+            adjacency_generator=generator,
+            initial_bb=initial_bb,
+            enable_cache=True
         )
 
         results = []
         for candidate in candidates:
             result = evaluator.evaluate_layout(candidate)
-            results.append(serialize_evaluation_result(result))
+            results.append(result)
 
-        # Sort by min_q (descending - higher is better)
-        results.sort(key=lambda r: r['min_q'], reverse=True)
+        # Refinement phase
+        refined_results = []
+        if refine and refine_count > 0:
+            # Select diverse candidates for refinement
+            diverse_candidates = select_diverse_candidates(
+                candidates, results, count=min(refine_count, len(candidates))
+            )
 
-        return jsonify({"layouts": results})
+            # Create refiner
+            refiner = LocalSearchRefiner(verbose=False)
+
+            # Refine each diverse candidate
+            for layout, initial_result in diverse_candidates:
+                refined_layout = refiner.refine_layout(
+                    layout,
+                    evaluator,
+                    max_iterations=refine_iterations,
+                    early_stop_threshold=10
+                )
+
+                # Evaluate refined layout
+                refined_result = evaluator.evaluate_layout(refined_layout)
+                refined_results.append(refined_result)
+
+            # Merge refined results with original results
+            all_results_dict = {tuple(sorted(r.layout.items())): r for r in results}
+
+            for refined_result in refined_results:
+                key = tuple(sorted(refined_result.layout.items()))
+                all_results_dict[key] = refined_result
+
+            # Update results list
+            results = list(all_results_dict.values())
+
+        # Sort by multiple criteria (matching CLI behavior)
+        results.sort(key=lambda r: (r.min_q, r.avg_efficiency, r.adjacency_score, r.avg_q), reverse=True)
+
+        # Serialize results
+        serialized_results = [serialize_evaluation_result(r) for r in results]
+
+        # Get cache stats
+        cache_stats = evaluator.get_cache_stats()
+
+        response = {
+            "layouts": serialized_results,
+            "cache_stats": cache_stats if refine else None,
+            "refined_count": len(refined_results) if refine else 0
+        }
+
+        return jsonify(response)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500

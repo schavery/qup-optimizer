@@ -19,12 +19,16 @@ export const api = {
     return response.data
   },
 
-  async generateLayouts(count, rank, seed, upgrades) {
+  async generateLayouts(count, rank, seed, upgrades, options = {}) {
     const response = await axios.post(`${API_BASE}/generate-layouts`, {
       count,
       rank,
       seed,
-      upgrades
+      upgrades,
+      initial_bb: options.initialBB || 0,
+      refine: options.refine !== undefined ? options.refine : true,
+      refine_count: options.refineCount || 5,
+      refine_iterations: options.refineIterations || 30
     })
     return response.data
   },

@@ -147,11 +147,14 @@ frontend/
 - **Real-time evaluation**: Results update automatically after changes (500ms debounce)
 - **Visual adjacency**: Click hexes to highlight neighbors (shows trigger relationships)
 - **Results panel**: Q outcome spectrum for all 20 round outcomes, trigger metrics, efficiency
+- **Generate Optimized Layout**: Uses iterative refinement (generates 20 candidates, refines top 5) - shows cache stats in console
 
 **API Endpoints**:
 - `GET /api/nodes` - All node definitions (static + movable)
 - `POST /api/evaluate` - Evaluate layout with upgrades, rank, and initial BB
-- `POST /api/generate-layouts` - Generate optimized candidate layouts
+- `POST /api/generate-layouts` - Generate optimized candidate layouts **with iterative refinement**
+  - Parameters: `count`, `rank`, `seed`, `upgrades`, `initial_bb`, `refine`, `refine_count`, `refine_iterations`
+  - Returns: layouts array, cache_stats (hit rate, total evaluations), refined_count
 - `POST /api/generate-upgrades` - Generate upgrade configurations (tiered or exhaustive)
 - `GET /api/outcomes` - All possible round outcome sequences
 - `GET /api/ranks` - Complete rank progression data (1-40)
