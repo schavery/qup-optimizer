@@ -328,16 +328,16 @@ class Simulator:
 
         return game_state
 
-    def simulate_round(self, flip_sequence: List[bool]) -> GameState:
+    def simulate_round(self, flip_sequence: List[bool], rank: int = 1) -> GameState:
         """Simulate a full round (series of flips)"""
-        game_state = GameState()
+        game_state = GameState(rank=rank)
 
         for flip_result in flip_sequence:
             game_state = self.simulate_flip(game_state, flip_result)
 
         return game_state
 
-    def simulate_all_round_outcomes(self, rounds_to_win: int = 3, max_flips: int = 5) -> Dict[str, GameState]:
+    def simulate_all_round_outcomes(self, rounds_to_win: int = 3, max_flips: int = 5, rank: int = 1) -> Dict[str, GameState]:
         """Simulate all possible round outcomes"""
         from itertools import product
 
@@ -362,6 +362,6 @@ class Simulator:
 
                     if not early_end:
                         sequence_str = ''.join(['W' if f else 'L' for f in flip_sequence])
-                        results[sequence_str] = self.simulate_round(list(flip_sequence))
+                        results[sequence_str] = self.simulate_round(list(flip_sequence), rank=rank)
 
         return results
