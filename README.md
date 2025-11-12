@@ -15,11 +15,22 @@ cd frontend
 npm install
 cd ..
 
-# Start the web server
+# Start the web server (runs on port 5001)
 python app.py
 ```
 
-Then open http://localhost:5000 in your browser for an interactive hex grid editor with real-time simulation.
+Then open **http://localhost:5001** in your browser for an interactive hex grid editor with real-time simulation.
+
+For development with hot-reload:
+```bash
+# Terminal 1: Start Flask backend
+python app.py
+
+# Terminal 2: Start Vite dev server
+cd frontend
+npm run dev
+# Open http://localhost:3000
+```
 
 ### Command Line Interface
 
@@ -61,7 +72,7 @@ At Grandmaster ranks (31+):
 
 ## Architecture
 
-### Core Components
+### Backend (Python)
 
 ```
 optimizer/
@@ -72,20 +83,44 @@ optimizer/
 ├── visualizer.py             # Display results (hex grids, Q spectra)
 ├── main.py                   # Position optimization CLI
 └── optimize_upgrades.py      # Upgrade optimization CLI
-```
 
-### Core System
-
-```
 core/
-├── game_state.py        # Game state (Q, BB, qmult, triggers)
+├── game_state.py        # Game state (Q, BB, qmult, triggers, xp, gold)
 ├── node.py              # Node definitions & instances
 ├── hex_grid.py          # Hex coordinate system
 └── layout.py            # Grid layout configuration
 
-simulator.py             # Core game simulation engine
-effects/executor.py      # Effect handlers (Qdown, triggers, etc.)
-data/nodes.py           # All node definitions (static + movable)
+data/
+├── nodes.py            # All node definitions (static + movable)
+└── ranks.py            # Complete rank progression (40 ranks)
+
+api/
+├── routes.py           # Flask REST API endpoints
+└── serializers.py      # JSON serialization helpers
+
+simulator.py            # Core game simulation engine
+effects/executor.py     # Effect handlers (Qdown, triggers, etc.)
+app.py                  # Flask application (port 5001)
+requirements.txt        # Python dependencies
+```
+
+### Frontend (Vue.js 3)
+
+```
+frontend/
+├── index.html          # HTML entry point
+├── vite.config.js      # Vite build configuration
+├── package.json        # npm dependencies
+└── src/
+    ├── main.js         # Vue app initialization
+    ├── App.vue         # Root component with state management
+    ├── components/
+    │   ├── HexGrid.vue       # SVG hex grid with zoom/click-to-place
+    │   ├── UpgradePanel.vue  # Upgrade sliders + optimizer UI
+    │   └── ResultsPanel.vue  # Simulation results visualization
+    └── utils/
+        ├── api.js            # API client wrapper (axios)
+        └── hexMath.js        # Hex coordinate math (cube coords)
 ```
 
 ## Features
@@ -93,21 +128,36 @@ data/nodes.py           # All node definitions (static + movable)
 ### 0. Web Interface
 
 **Interactive hex grid visualization with real-time simulation**
-- **Drag & drop** movable nodes to any hex position
-- **Upgrade sliders** for all static nodes with live point tracking
-- **Real-time evaluation** shows Q outcomes as you make changes
-- **Visual adjacency** highlights to understand trigger cascades
-- **Hex grid rendering** using SVG with proper cube coordinates
-- **Results panel** with outcome spectrum, trigger metrics, and efficiency
+
+**Key Features:**
+- **Click-to-place nodes**: Click a movable node, then click a hex to place it
+- **Full node names**: No abbreviations - see complete names on the grid
+- **Upgrade optimizer**: Click "Optimize" → "Generate Top 5" to see best upgrade configs
+- **Initial BB input**: Set your starting battle bonus (persists across games)
+- **Rank selector**: Choose from 40 ranks (Bronze 1 → Legend 5)
+- **Live Qdown display**: See penalty for current rank in header
+- **Randomize layout**: Generate optimized position layouts with one click
+- **Zoom controls**: Mouse wheel or +/- buttons to zoom in/out
+- **60° rotated grid**: Node order 1 (Battle Medic) points north
+
+**Interactive Controls:**
+- **Upgrade sliders**: Adjust upgrade points for each static node (18 point budget)
+- **Real-time evaluation**: Results update automatically after changes (500ms debounce)
+- **Visual adjacency**: Click hexes to highlight neighbors (shows trigger relationships)
+- **Results panel**: Q outcome spectrum for all 20 round outcomes, trigger metrics, efficiency
 
 **API Endpoints**:
-- `GET /api/nodes` - All node definitions
-- `POST /api/evaluate` - Evaluate a layout configuration
+- `GET /api/nodes` - All node definitions (static + movable)
+- `POST /api/evaluate` - Evaluate layout with upgrades, rank, and initial BB
 - `POST /api/generate-layouts` - Generate optimized candidate layouts
-- `POST /api/generate-upgrades` - Generate upgrade configurations
+- `POST /api/generate-upgrades` - Generate upgrade configurations (tiered or exhaustive)
 - `GET /api/outcomes` - All possible round outcome sequences
+- `GET /api/ranks` - Complete rank progression data (1-40)
+- `GET /api/rank/<rank>` - Specific rank rewards and penalties
 
-**Tech Stack**: Flask + Vue.js 3 + Vite
+**Tech Stack**: Flask + Vue.js 3 + Vite + SVG hex rendering
+
+**Port Configuration**: Runs on port 5001 (avoid macOS AirPlay Receiver conflict)
 
 ### 1. Adjacency-Aware Position Optimization
 
@@ -163,23 +213,60 @@ python debug_panic_efficiency.py
 
 Shows exact sequence of Panic triggers and which adjacent nodes are depleted.
 
-### 4. Simulation Engine
+### 4. Comprehensive Rank System
+
+**40 Ranks Across 8 Tiers**:
+- Bronze (1-5): -100 to -200 Qdown
+- Silver (6-10): -500 to -1,200 Qdown
+- Gold (11-15): -2,750 to -7,500 Qdown
+- Platinum (16-20): -15K to -57.5K Qdown
+- Diamond (21-25): -75K to -127K Qdown
+- Master (26-30): -200K to -362K Qdown
+- Grandmaster (31-35): -700K to -2.7M Qdown
+- Legend (36-40): -2M to -15M Qdown
+
+**Data Source**: Based on observed gameplay data with interpolation
+- Qup per flip: Always +100
+- XP and Gold scale with rank
+- Exponential Qdown growth at high ranks
+
+**Implementation**: `data/ranks.py` with complete reward/penalty tables
+
+### 5. Simulation Engine
 
 **Features**:
 - Simulates all 20 possible round outcomes (best-of-5)
 - Handles recursive trigger cascades with AVS checking
 - Tracks: Q currency, qmult, battle bonus, triggers, efficiency
 - Proper trigger order: spiral outward from center
+- **Battle Bonus persistence**: BB carries across flips, rounds, and games
+- **Round multipliers**: 2x Qup/gold/xp on win, 2x Qdown on loss
 
-**Example Flow** (single loss flip):
+**Battle Bonus Mechanics**:
+- Increments by 1 on each loss flip
+- Nodes like Adrenaline add +1 BB per trigger
+- Resets to 0 on wins (AFTER node evaluation, not before)
+- Used by Battle Medic to multiply qmult
+- Persists between games (set via "Initial BB" input)
+
+**Example Flow** (single loss flip with BB=3):
 1. Reset all node AVS counters
-2. Set `q_this_flip = -700,000` (base Qdown)
-3. Trigger "flip" nodes (spiral order)
-4. Trigger "loss" nodes (spiral order)
+2. BB increments: 3 → 4
+3. Set `q_this_flip = -700,000` (base Qdown)
+4. Trigger "flip" nodes (spiral order)
+5. Trigger "loss" nodes (spiral order)
    - Angel of Death: `qmult *= 3`
    - Panic: Triggers all 5-6 adjacent nodes
+   - Adrenaline triggers: BB increments to 5, 6, 7...
+   - Battle Medic uses BB in qmult calculation
    - Those nodes trigger Panic back → cascade
-5. Apply qmult: `q_currency += q_this_flip * qmult`
+6. Apply qmult: `q_currency += q_this_flip * qmult`
+7. If win: BB resets to 0 (otherwise persists)
+
+**Upgrade Path Bug Fix**:
+- Fixed non-AVS upgrade attributes to replace instead of accumulate
+- AVS increases remain additive as intended
+- Affects: Battle Medic effect_mult, EMT bb_multiplier, all node-specific bonuses
 
 ## Results at Grandmaster 1 (Rank 31)
 
@@ -221,7 +308,21 @@ Triage: [2,0] → 4% Qdown reduction
 
 ### Data Files
 - `data/nodes.py` - All node definitions (NODES + MOVABLE_NODES)
-- `rank_notes.txt` - Rank progression notes
+- `data/ranks.py` - Complete rank progression system (40 ranks)
+- `rank_notes.txt` - Observed rank data from gameplay
+
+### API Files
+- `api/routes.py` - Flask REST API endpoints
+- `api/serializers.py` - JSON serialization for dataclasses
+- `app.py` - Flask application entry point (port 5001)
+
+### Frontend Files
+- `frontend/src/App.vue` - Main Vue application
+- `frontend/src/components/HexGrid.vue` - SVG hex grid with zoom/pan
+- `frontend/src/components/UpgradePanel.vue` - Upgrade sliders + optimizer
+- `frontend/src/components/ResultsPanel.vue` - Simulation results display
+- `frontend/src/utils/hexMath.js` - Hex coordinate math (60° rotated)
+- `frontend/src/utils/api.js` - API client wrapper
 
 ## Advanced Usage
 
@@ -261,13 +362,42 @@ python -m optimizer.optimize_upgrades --budget 18 --strategy exhaustive
 - Adjacent nodes also reset each flip
 - Efficiency waste happens WITHIN a single flip
 
+## Recent Improvements (2025)
+
+### Web Interface
+- ✅ Interactive hex grid with SVG rendering
+- ✅ Click-to-place node positioning
+- ✅ Full node names (no abbreviations)
+- ✅ Zoom controls (mouse wheel + buttons)
+- ✅ 60° grid rotation (Battle Medic points north)
+- ✅ Upgrade optimizer with top 5 configs
+- ✅ Initial BB input for persistent state
+- ✅ Rank selector (40 ranks across 8 tiers)
+- ✅ Real-time evaluation with debouncing
+
+### Simulation Accuracy
+- ✅ Fixed BB reset timing (after node evaluation)
+- ✅ Battle bonus persistence across games
+- ✅ Round multipliers (2x on win/loss)
+- ✅ Upgrade path bug fix (replace vs accumulate)
+- ✅ Comprehensive rank system with accurate Qdown values
+
+### API & Data
+- ✅ Complete rank progression system (Bronze → Legend)
+- ✅ JSON serialization for all dataclasses
+- ✅ RESTful API with 8 endpoints
+- ✅ Initial BB support throughout simulation chain
+
 ## Future Improvements
 
-1. **Balanced Upgrade Strategy**: Upgrade Panic + adjacent nodes together
-2. **Dynamic Position Generation**: Adjust positions based on upgrade config
-3. **Multi-Objective Optimization**: Pareto frontier of Q vs efficiency
-4. **Genetic Algorithm**: Evolve layouts over generations
-5. **Adjacent Node AVS Optimization**: Ensure Panic's targets can handle all triggers
+1. **Pan/Drag Grid**: Add click-and-drag panning for large grids
+2. **Layout Comparison**: Side-by-side comparison of multiple layouts
+3. **Save/Load Layouts**: Persist layouts to localStorage or URL params
+4. **Multi-Objective Optimization**: Pareto frontier of Q vs efficiency
+5. **Genetic Algorithm**: Evolve layouts over generations
+6. **Adjacent Node AVS Optimization**: Ensure Panic's targets can handle all triggers
+7. **Battle Bonus Visualization**: Show BB accumulation in results panel
+8. **Mobile Responsive**: Optimize layout for smaller screens
 
 ## Credits
 
