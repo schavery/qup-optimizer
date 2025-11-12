@@ -35,7 +35,7 @@
           />
           <text
             :x="cubeToPixel(node.position[0], node.position[1], node.position[2]).x"
-            :y="cubeToPixel(node.position[0], node.position[1], node.position[2]).y"
+            :y="cubeToPixel(node.position[0], node.position[1], node.position[2]).y - 5"
             text-anchor="middle"
             dominant-baseline="middle"
             class="node-label node-label-static"
@@ -43,6 +43,17 @@
             @mouseleave="hideTooltip"
           >
             {{ name }}
+          </text>
+          <text
+            :x="cubeToPixel(node.position[0], node.position[1], node.position[2]).x"
+            :y="cubeToPixel(node.position[0], node.position[1], node.position[2]).y + 8"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            class="node-avs-label"
+            @mouseenter="showTooltip($event, name, 'static')"
+            @mouseleave="hideTooltip"
+          >
+            AVS: {{ calculateTotalAVS(node, upgrades[name] || []) }}
           </text>
         </g>
 
@@ -63,7 +74,7 @@
           />
           <text
             :x="cubeToPixel(pos[0], pos[1], pos[2]).x"
-            :y="cubeToPixel(pos[0], pos[1], pos[2]).y"
+            :y="cubeToPixel(pos[0], pos[1], pos[2]).y - 5"
             text-anchor="middle"
             dominant-baseline="middle"
             class="node-label node-label-movable"
@@ -72,6 +83,18 @@
             @mouseleave="hideTooltip"
           >
             {{ name }}
+          </text>
+          <text
+            :x="cubeToPixel(pos[0], pos[1], pos[2]).x"
+            :y="cubeToPixel(pos[0], pos[1], pos[2]).y + 8"
+            text-anchor="middle"
+            dominant-baseline="middle"
+            class="node-avs-label node-avs-label-movable"
+            @mousedown="startDrag($event, name)"
+            @mouseenter="showTooltip($event, name, 'movable')"
+            @mouseleave="hideTooltip"
+          >
+            AVS: {{ movableNodes[name] ? calculateTotalAVS(movableNodes[name], []) : 'N/A' }}
           </text>
         </g>
 
@@ -808,6 +831,22 @@ svg:active {
 
 .node-label-movable:hover {
   fill: #fff;
+}
+
+/* AVS labels */
+.node-avs-label {
+  font-size: 8px;
+  font-weight: 700;
+  fill: #aaf;
+  user-select: none;
+  pointer-events: none;
+  text-shadow: 0 0 3px rgba(0, 0, 0, 0.9), 0 0 5px rgba(0, 0, 0, 0.7);
+}
+
+.node-avs-label-movable {
+  fill: #afa;
+  cursor: move;
+  pointer-events: all;
 }
 
 /* Node order label */
