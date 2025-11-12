@@ -21,6 +21,12 @@ python app.py
 
 Then open **http://localhost:5001** in your browser for an interactive hex grid editor with real-time simulation.
 
+## Screenshot
+
+![Qup Skill Tree Optimizer Web Interface](./screenshots/webview.png)
+
+*Interactive hex grid with node drawer, upgrade panel, and real-time simulation results. Features include drag-and-drop node placement, adjacency trigger visualization, and localStorage persistence.*
+
 For development with hot-reload:
 ```bash
 # Terminal 1: Start Flask backend
