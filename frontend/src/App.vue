@@ -68,7 +68,9 @@
       <section class="grid-section">
         <HexGrid
           :static-nodes="staticNodes"
+          :movable-nodes="movableNodes"
           :movable-positions="movablePositions"
+          :upgrades="upgrades"
           :radius="8"
           @update:movablePositions="handlePositionsUpdate"
         />

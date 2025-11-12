@@ -5,11 +5,10 @@ export const HEX_SIZE = 35
 export const HEX_SPACING = HEX_SIZE * 1.8
 
 // Convert cube coordinates (q, r, s) to pixel coordinates
-// Rotated 60 degrees left so (0, -1, 1) points north
+// Pointy-top orientation
 export function cubeToPixel(q, r, s) {
-  // Original pointy-top orientation rotated 60 degrees CCW
-  const x = HEX_SPACING * (Math.sqrt(3) * q + Math.sqrt(3)/2 * r)
-  const y = HEX_SPACING * (3/2 * r)
+  const x = HEX_SPACING * (3/2 * q)
+  const y = HEX_SPACING * (Math.sqrt(3)/2 * q + Math.sqrt(3) * r)
   return { x, y }
 }
 
@@ -52,11 +51,12 @@ export function generateHexGrid(radius) {
   return hexes
 }
 
-// SVG path for a hexagon
+// SVG path for a hexagon (pointy-top orientation)
 export function hexagonPath(cx, cy, size) {
   const points = []
   for (let i = 0; i < 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 2
+    // Pointy-top: start at 30° (π/6), vertices every 60° (π/3)
+    const angle = (Math.PI / 3) * i + Math.PI / 6
     const x = cx + size * Math.cos(angle)
     const y = cy + size * Math.sin(angle)
     points.push(`${x},${y}`)
