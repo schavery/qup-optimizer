@@ -9,6 +9,7 @@
     <svg
       :width="svgWidth"
       :height="svgHeight"
+      @mousedown="handleSvgMouseDown"
       @mouseup="handleMouseUp"
       @mousemove="handleMouseMove"
       @mouseleave="handleMouseUp"
@@ -316,6 +317,17 @@ export default {
     },
 
     handleMouseMove(event) {
+      // Handle panning
+      if (this.isPanning) {
+        event.preventDefault()
+        const dx = event.clientX - this.panStartPos.x
+        const dy = event.clientY - this.panStartPos.y
+        this.panX = this.panStartPos.panX + dx
+        this.panY = this.panStartPos.panY + dy
+        return
+      }
+
+      // Handle node dragging
       if (!this.draggingNode) return
 
       event.preventDefault()
@@ -350,7 +362,27 @@ export default {
       }
     },
 
+    handleSvgMouseDown(event) {
+      // Only start panning if clicking on the SVG background (not on nodes)
+      if (event.target.tagName === 'svg' || event.target.classList.contains('hex-grid')) {
+        this.isPanning = true
+        this.panStartPos = {
+          x: event.clientX,
+          y: event.clientY,
+          panX: this.panX,
+          panY: this.panY
+        }
+      }
+    },
+
     handleMouseUp() {
+      // End panning
+      if (this.isPanning) {
+        this.isPanning = false
+        this.panStartPos = null
+      }
+
+      // End node dragging
       if (this.draggingNode) {
         // Check if current position is valid, if not restore original
         const currentPos = this.movablePositions[this.draggingNode]
@@ -680,7 +712,11 @@ export default {
 }
 
 svg {
-  cursor: crosshair;
+  cursor: grab;
+}
+
+svg:active {
+  cursor: grabbing;
 }
 
 .hex-grid {
