@@ -272,6 +272,8 @@ class Simulator:
         """Trigger a single node and handle its special effects"""
         # Check if node can still trigger (has AVS remaining)
         if not node.can_trigger():
+            # Track this as a wasted trigger on a depleted node
+            game_state.depleted_triggers += 1
             return game_state
 
         # Execute the node's primary effect

@@ -40,10 +40,18 @@ class NodeInstance:
             return None
 
         total = self.definition.base_avs
+
+        # Only process upgrades if node has upgrade paths
+        if not self.definition.upgrade_paths:
+            return total
+
         for path_idx, level in enumerate(self.upgrade_levels):
+            if path_idx >= len(self.definition.upgrade_paths):
+                continue  # Skip if path doesn't exist
+
             path = self.definition.upgrade_paths[path_idx]
             for step_idx in range(level):
-                if 'avs_increase' in path[step_idx]:
+                if step_idx < len(path) and 'avs_increase' in path[step_idx]:
                     total += path[step_idx]['avs_increase']
         return total
 

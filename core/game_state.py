@@ -13,6 +13,7 @@ class GameState:
 
     flip_history: List[bool] = field(default_factory=list)
     total_triggers: int = 0  # Track total triggers across all flips
+    depleted_triggers: int = 0  # Track triggers that hit depleted nodes (wasted)
 
     def apply_qmult(self):
         """Apply Qmult to q_this_flip and add to total currency"""

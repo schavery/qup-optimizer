@@ -10,9 +10,19 @@ silver 2:
 on win:
 on loss: -650Q, +158xp
 
-Silver 3:
 
 Silver 4:
 On win: +100Q, +450xp, +270 gold
 on loss: -950Q, +203xp
 
+
+Gold 1:
+on win: +100Q, +750xp, +450 gold
+on loss: -2750Q, +338 gold
+
+Gold 2:
+on win: +100Q, +875xp, +525 gold
+on loss: -3500Q, +394 gold
+
+
+is AVS resetting every flip?

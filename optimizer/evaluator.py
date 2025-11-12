@@ -21,6 +21,7 @@ class EvaluationResult:
     trigger_counts: Dict[str, int] = None  # outcome sequence -> total triggers in round
     adjacency_score: float = 0.0  # Score based on trigger cluster adjacency
     max_triggers_per_flip: int = 0  # Maximum triggers in any single flip
+    avg_efficiency: float = 0.0  # Average trigger efficiency (useful triggers / total attempts)
 
     def __repr__(self):
         return (f"EvaluationResult(min_q={self.min_q}, max_q={self.max_q}, "
@@ -97,16 +98,23 @@ class LayoutEvaluator:
         # Run all round outcomes with proper rank
         all_outcomes = sim.simulate_all_round_outcomes(rounds_to_win=3, max_flips=5, rank=self.rank)
 
-        # Extract Q values and trigger counts
+        # Extract Q values, trigger counts, and efficiency
         q_values = []
         outcomes_dict = {}
         trigger_counts = {}
+        efficiencies = []
 
         for sequence, game_state in all_outcomes.items():
             final_q = game_state.q_currency
             q_values.append(final_q)
             outcomes_dict[sequence] = final_q
             trigger_counts[sequence] = game_state.total_triggers
+
+            # Calculate efficiency for this outcome
+            total_attempts = game_state.total_triggers + game_state.depleted_triggers
+            if total_attempts > 0:
+                efficiency = game_state.total_triggers / total_attempts
+                efficiencies.append(efficiency)
 
         # Calculate metrics
         min_q = min(q_values)
@@ -128,6 +136,9 @@ class LayoutEvaluator:
         if self.adjacency_generator:
             adjacency_score = self.adjacency_generator.calculate_adjacency_score(layout)
 
+        # Calculate average efficiency
+        avg_efficiency = sum(efficiencies) / len(efficiencies) if efficiencies else 0.0
+
         return EvaluationResult(
             layout=layout,
             outcomes=outcomes_dict,
@@ -138,7 +149,8 @@ class LayoutEvaluator:
             total_outcomes=total_outcomes,
             trigger_counts=trigger_counts,
             adjacency_score=adjacency_score,
-            max_triggers_per_flip=max_triggers_per_flip
+            max_triggers_per_flip=max_triggers_per_flip,
+            avg_efficiency=avg_efficiency
         )
 
     def evaluate_batch(self, layouts: List[Dict[str, Tuple[int, int, int]]],
@@ -164,8 +176,9 @@ class LayoutEvaluator:
 
         # Sort by multiple criteria:
         # 1. Primary: min_q (best worst-case)
-        # 2. Secondary: adjacency_score (better trigger potential)
-        # 3. Tertiary: avg_q (better average case)
-        results.sort(key=lambda r: (r.min_q, r.adjacency_score, r.avg_q), reverse=True)
+        # 2. Secondary: avg_efficiency (avoid wasted triggers on depleted nodes)
+        # 3. Tertiary: adjacency_score (better trigger potential)
+        # 4. Quaternary: avg_q (better average case)
+        results.sort(key=lambda r: (r.min_q, r.avg_efficiency, r.adjacency_score, r.avg_q), reverse=True)
 
         return results

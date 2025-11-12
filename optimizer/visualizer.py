@@ -106,6 +106,12 @@ class ResultVisualizer:
             max_triggers = max(trigger_values)
             avg_triggers = sum(trigger_values) / len(trigger_values)
             print(f"Triggers - Min: {min_triggers}, Max: {max_triggers}, Avg: {avg_triggers:.1f}")
+
+        # Show efficiency
+        if result.avg_efficiency > 0:
+            wasted_pct = (1 - result.avg_efficiency) * 100
+            print(f"Trigger Efficiency: {result.avg_efficiency*100:.1f}% ({wasted_pct:.1f}% wasted on depleted nodes)")
+
         print()
 
         # Sort outcomes by sequence
@@ -182,9 +188,10 @@ class ResultVisualizer:
         for i, result in enumerate(results[:top_n], 1):
             print(f"#{i}: Min Q: {result.min_q:,} | Avg Q: {result.avg_q:,.0f} | "
                   f"Max Q: {result.max_q:,}")
-            print(f"    Adjacency: {result.adjacency_score:.1f} | "
-                  f"Max triggers/flip: {result.max_triggers_per_flip} | "
-                  f"Positive: {result.positive_outcomes}/{result.total_outcomes}")
+            print(f"    Efficiency: {result.avg_efficiency*100:.1f}% | "
+                  f"Adjacency: {result.adjacency_score:.1f} | "
+                  f"Max triggers/flip: {result.max_triggers_per_flip}")
+            print(f"    Positive outcomes: {result.positive_outcomes}/{result.total_outcomes}")
 
         print()
 
