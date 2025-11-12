@@ -341,6 +341,21 @@ class Simulator:
         for flip_result in flip_sequence:
             game_state = self.simulate_flip(game_state, flip_result)
 
+        # Apply round win/loss multiplier
+        wins = sum(flip_sequence)
+        losses = len(flip_sequence) - wins
+
+        if wins > losses:
+            # Round WIN: 2x Qup, 2x gold, 2x xp
+            game_state.q_currency *= 2
+            if hasattr(game_state, 'gold'):
+                game_state.gold *= 2
+            if hasattr(game_state, 'xp'):
+                game_state.xp *= 2
+        else:
+            # Round LOSS: 2x Qdown
+            game_state.q_currency *= 2
+
         return game_state
 
     def simulate_all_round_outcomes(self, rounds_to_win: int = 3, max_flips: int = 5, rank: int = 1) -> Dict[str, GameState]:
