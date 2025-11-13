@@ -171,6 +171,14 @@ class UpgradeConfigGenerator:
             [0, 0],  # Skip
         ]
 
+        # Precision Cut configurations (triggers on loss, scales with depleted nodes)
+        precision_cut_configs = [
+            [0, 0],  # Skip
+            [1, 1],  # Balanced
+            [2, 0],  # Effect scaling
+            [0, 2],  # AVS
+        ]
+
         # Combine strategically
         import random
         random.seed(42)
@@ -226,28 +234,37 @@ class UpgradeConfigGenerator:
                                         if t_p2 > 4:
                                             continue
 
-                                        # Big Sister gets remainder (usually 0)
-                                        bs_remaining = remaining_5 - t_total
-                                        if bs_remaining > 5:
-                                            bs_remaining = 0  # Skip Big Sister if too many points
+                                        # Precision Cut and Big Sister get remainder
+                                        remaining_6 = remaining_5 - t_total
 
-                                        # Create config
-                                        config = {
-                                            'Panic': panic_cfg,
-                                            'EMT': emt_cfg,
-                                            'Stop the Bleeding': stb_cfg,
-                                            'Self Diagnosis': self_diag_cfg,
-                                            'Battle Medic': [bm_p1, bm_p2],
-                                            'Triage': [t_p1, t_p2],
-                                            'Big Sister': [0, 0],  # Usually skip
-                                        }
+                                        for pc_cfg in precision_cut_configs:
+                                            pc_cost = sum(pc_cfg)
+                                            if pc_cost > remaining_6:
+                                                continue
 
-                                        total_cost = sum(sum(v) for v in config.values())
-                                        if total_cost == budget:
-                                            configs.append(config)
+                                            # Big Sister gets any leftover (usually 0)
+                                            bs_remaining = remaining_6 - pc_cost
+                                            if bs_remaining > 5:
+                                                bs_remaining = 0  # Skip Big Sister if too many points
 
-                                        if len(configs) >= num_samples:
-                                            return configs
+                                            # Create config
+                                            config = {
+                                                'Panic': panic_cfg,
+                                                'EMT': emt_cfg,
+                                                'Stop the Bleeding': stb_cfg,
+                                                'Self Diagnosis': self_diag_cfg,
+                                                'Battle Medic': [bm_p1, bm_p2],
+                                                'Triage': [t_p1, t_p2],
+                                                'Precision Cut': pc_cfg,
+                                                'Big Sister': [0, 0],  # Usually skip
+                                            }
+
+                                            total_cost = sum(sum(v) for v in config.values())
+                                            if total_cost == budget:
+                                                configs.append(config)
+
+                                            if len(configs) >= num_samples:
+                                                return configs
 
         return configs
 

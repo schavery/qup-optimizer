@@ -55,7 +55,7 @@ NODES = {
 
     "Self Diagnosis": NodeDefinition(
         name="Self Diagnosis",
-        position=(2, 1, -3),
+        position=(3, -2, -1),
         trigger_types=["win"],
         base_avs=3,
         is_static=True,
@@ -80,7 +80,7 @@ NODES = {
 
     "Stop the Bleeding": NodeDefinition(
         name="Stop the Bleeding",
-        position=(3, -3, 0),
+        position=(0, -3, 3),
         trigger_types=["loss"],
         base_avs=2,
         is_static=True,
@@ -105,7 +105,7 @@ NODES = {
 
     "Panic": NodeDefinition(
         name="Panic",
-        position=(-2, -1, 3),
+        position=(-3, 2, 1),
         trigger_types=["loss"],
         base_avs=1,
         is_static=True,
@@ -126,7 +126,7 @@ NODES = {
 
     "Triage": NodeDefinition(
         name="Triage",
-        position=(2, 2, -4),
+        position=(4, -1, -3),
         trigger_types=["loss"],
         base_avs=2,
         is_static=True,
@@ -136,8 +136,8 @@ NODES = {
         },
         upgrade_paths=[
             [
-                {"percent_increase": 0.01},  # +1% = 4% total
-                {"percent_increase": 0.01}   # +1% = 5% total
+                {"percent_increase": 0.04},  # 4%
+                {"percent_increase": 0.05}   # 5%
             ],
             [
                 {"avs_increase": 1},
@@ -151,7 +151,7 @@ NODES = {
 
     "Big Sister": NodeDefinition(
         name="Big Sister",
-        position=(-1, -3, 4),
+        position=(-4, 1, 3),
         trigger_types=["win"],
         base_avs=3,
         is_static=True,
@@ -172,6 +172,31 @@ NODES = {
             ]
         ],
         node_order=56
+    ),
+
+    "Precision Cut": NodeDefinition(
+        name="Precision Cut",
+        position=(3, -4, 1),
+        trigger_types=["loss"],
+        base_avs=1,
+        is_static=True,
+        effect_type="teammate_qdown_reduction_per_depleted",
+        effect_params={
+            "base_per_depleted": 500,
+        },
+        upgrade_paths=[
+            [
+                {"per_depleted_increase": 750},
+                {"per_depleted_increase": 1000},
+                {"per_depleted_increase": 1250}
+            ],
+            [
+                {"avs_increase": 1},
+                {"avs_increase": 1},
+                {"avs_increase": 2}
+            ]
+        ],
+        node_order=40,
     ),
 }
 

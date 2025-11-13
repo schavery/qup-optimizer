@@ -22,10 +22,10 @@ class LocalSearchRefiner:
     def __init__(self, verbose: bool = False):
         self.verbose = verbose
 
-        # Static node positions for domain knowledge
-        self.panic_position = (-2, -1, 3)  # Panic node (static)
-        self.emt_position = (-1, 1, 0)     # EMT - reduces Qdown
-        self.battle_medic_position = (1, -1, 0)  # Battle Medic - adds to Qmult
+        # Load static node positions from data
+        self.panic_position = NODES['Panic'].position
+        self.emt_position = NODES['EMT'].position
+        self.battle_medic_position = NODES['Battle Medic'].position
 
         # Trigger nodes that create chains
         self.trigger_nodes = [

@@ -20,7 +20,10 @@ class AdjacencyAwareGenerator(CandidateGenerator):
         super().__init__(max_radius, seed)
 
         # Identify Panic's position from static nodes
-        self.panic_position = (-2, -1, 3)  # From NODES data
+        from data.nodes import NODES
+        if 'Panic' not in NODES:
+            raise ValueError("Panic node not found in static nodes")
+        self.panic_position = NODES['Panic'].position
         self.panic_hex = HexPosition(*self.panic_position)
 
         # Get Panic's adjacent positions

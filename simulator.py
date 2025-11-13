@@ -268,6 +268,26 @@ class Simulator:
 
         return game_state
 
+    def handle_precision_cut(self, precision_node: NodeInstance, game_state: GameState) -> GameState:
+        """Handle Precision Cut Qdown reduction based on depleted nodes"""
+        params = precision_node.definition.effect_params
+        per_depleted = params['base_per_depleted']
+
+        # Apply upgrade replacements (not additive)
+        for path_idx, level in enumerate(precision_node.upgrade_levels):
+            path = precision_node.definition.upgrade_paths[path_idx]
+            for step_idx in range(level):
+                if 'per_depleted_increase' in path[step_idx]:
+                    per_depleted = path[step_idx]['per_depleted_increase']
+
+        # Count depleted nodes and apply reduction
+        depleted_count = self.count_depleted_nodes()
+        total_reduction = per_depleted * depleted_count
+
+        game_state.q_this_flip += total_reduction
+
+        return game_state
+
     def trigger_node(self, node: NodeInstance, game_state: GameState) -> GameState:
         """Trigger a single node and handle its special effects"""
         # Check if node can still trigger (has AVS remaining)
@@ -296,6 +316,8 @@ class Simulator:
             game_state = self.handle_low_point(node, game_state)
         elif effect_type == "xp_per_depleted":
             game_state = self.handle_funeral_rites(node, game_state)
+        elif effect_type == "teammate_qdown_reduction_per_depleted":
+            game_state = self.handle_precision_cut(node, game_state)
 
         return game_state
 
