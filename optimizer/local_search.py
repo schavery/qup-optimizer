@@ -67,6 +67,9 @@ class LocalSearchRefiner:
         best_layout = current_layout.copy()
         best_result = current_result
 
+        # Store initial adjacency to prevent cumulative degradation
+        self.initial_adjacency = current_result.adjacency_score
+
         iterations_without_improvement = 0
 
         if self.verbose:
@@ -141,10 +144,19 @@ class LocalSearchRefiner:
 
     def _is_better(self, result1, result2) -> bool:
         """
-        Compare two results (follows evaluator sorting criteria)
+        Compare two results with adjacency awareness
 
-        Priority: min_q > avg_efficiency > adjacency_score > avg_q
+        Strategy: Only accept min_q improvements if they don't significantly hurt adjacency
+        Priority: adjacency_score (protect trigger chains) > min_q > avg_efficiency > avg_q
         """
+        # Check cumulative adjacency drop from initial layout
+        adjacency_drop_from_initial = self.initial_adjacency - result1.adjacency_score
+
+        # Reject if cumulative adjacency drop exceeds threshold (losing trigger chains)
+        if adjacency_drop_from_initial > 5.0:
+            return False
+
+        # If adjacency is similar or better, use standard comparison
         if result1.min_q != result2.min_q:
             return result1.min_q > result2.min_q
 
